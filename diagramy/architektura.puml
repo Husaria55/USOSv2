@@ -1,0 +1,54 @@
+@startuml architektura
+!pragma layout smetana
+title System zapisów na zajęcia – architektura systemu
+skinparam componentStyle rectangle
+skinparam shadowing false
+
+actor "Student" as student
+actor "Prowadzący" as prow
+actor "Administrator\n(dziekanat)" as admin
+
+package "Warstwa prezentacji" {
+  [Aplikacja webowa SPA\n(React + TypeScript)] as spa
+}
+
+package "Warstwa aplikacji (backend, FastAPI)" {
+  [REST API\n(uwierzytelnianie JWT,\nrole, limit żądań)] as api
+  [Katalog\n(CatalogService)\nkursy, grupy, sale,\nprowadzący, terminy] as katalog
+  [Zapisy\n(EnrollmentService)] as zapisy
+  [Wymagania wstępne\n(PrerequisiteChecker)] as wym
+  [Wykrywanie kolizji\n(ScheduleConflictDetector)] as kol
+  [Listy oczekujących\n(WaitlistService)] as wait
+  [Powiadomienia\n(NotificationService)] as notif
+}
+
+package "Procesy w tle" {
+  [Worker\n(otwieranie/zamykanie tur,\nwysyłka e-maili z outboxa)] as worker
+}
+
+database "PostgreSQL\n(transakcje ACID,\nSELECT ... FOR UPDATE)" as db
+cloud "Serwer SMTP" as smtp
+
+student --> spa : HTTPS
+prow --> spa : HTTPS
+admin --> spa : HTTPS
+spa --> api : REST/JSON
+api --> katalog
+api --> zapisy
+api --> wait
+zapisy --> wym : czy zaliczone\nprzedmioty?
+zapisy --> kol : czy koliduje\nz planem?
+zapisy --> wait : zwolnione miejsce:\nawans z listy
+katalog --> kol : kolizje sal\ni prowadzących
+katalog --> wait : zwiększony limit:\nawans z listy
+wait --> zapisy : zapis awansowanego
+wait --> notif
+zapisy --> notif
+notif --> db : outbox
+worker --> db
+worker --> smtp
+katalog --> db
+zapisy --> db
+wait --> db
+wym --> db
+@enduml

@@ -1,0 +1,45 @@
+@startuml przypadki_uzycia_administracja
+!pragma layout smetana
+left to right direction
+title Przypadki użycia (2/2) – dziekanat, prowadzący, zegar
+skinparam shadowing false
+
+actor "Administrator\n(dziekanat)" as A
+actor "Prowadzący" as P
+actor "Zegar systemowy" as Z
+
+rectangle "System zapisów" {
+  usecase "//Operacja pracownika//" as OPP
+  usecase "UC0: Uwierzytelnij się" as UC0
+  usecase "UC10: Przeglądaj listy\nstudentów swoich grup" as UC10
+  usecase "UC11: Zarządzaj kursami\ni wymaganiami wstępnymi" as UC11
+  usecase "UC12: Zarządzaj grupami,\nsalami i harmonogramem" as UC12
+  usecase "UC13: Zmień limit miejsc\nw grupie" as UC13
+  usecase "UC14: Zapisz / wypisz studenta\n(decyzja dziekanatu)" as UC14
+  usecase "UC15: Importuj zaliczone\nprzedmioty" as UC15
+  usecase "UC16: Otwórz / zamknij\nturę zapisów" as UC16
+  usecase "UC4: Wykryj kolizję\nw planie" as UC4
+  usecase "UC9: Awansuj pierwszego\nz listy oczekujących" as UC9
+}
+
+P -- UC10
+A -- UC11
+A -- UC12
+A -- UC13
+A -- UC14
+A -- UC15
+A -- UC16
+Z -- UC16
+
+UC10 --|> OPP
+UC11 --|> OPP
+UC12 --|> OPP
+UC13 --|> OPP
+UC14 --|> OPP
+UC15 --|> OPP
+OPP ..> UC0 : <<include>>
+
+UC12 ..> UC4 : <<include>>\n(sala, prowadzący)
+UC13 ..> UC9 : <<include>>
+UC14 ..> UC9 : <<include>>
+@enduml

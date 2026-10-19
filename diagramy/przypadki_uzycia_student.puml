@@ -1,0 +1,52 @@
+@startuml przypadki_uzycia_student
+!pragma layout smetana
+left to right direction
+title Przypadki użycia (1/2) – student i zapisy
+skinparam shadowing false
+
+actor "Student" as S
+
+rectangle "System zapisów" {
+  usecase "//Operacja studenta//" as OPS
+  usecase "UC0: Uwierzytelnij się" as UC0
+  usecase "UC1: Przeglądaj katalog\nkursów i grup" as UC1
+  usecase UC2 as "UC2: Zapisz się do grupy
+--
+extension points:
+brak wolnych miejsc"
+  usecase "UC3: Sprawdź wymagania\nwstępne" as UC3
+  usecase "UC4: Wykryj kolizję\nw planie" as UC4
+  usecase "UC5: Dopisz do listy\noczekujących" as UC5
+  usecase "UC6: Wypisz się z grupy" as UC6
+  usecase "UC7: Zrezygnuj z listy\noczekujących" as UC7
+  usecase "UC8: Przeglądaj swój\nplan zajęć" as UC8
+  usecase "UC9: Awansuj pierwszego\nz listy oczekujących" as UC9
+}
+
+S -- UC1
+S -- UC2
+S -- UC6
+S -- UC7
+S -- UC8
+
+UC1 --|> OPS
+UC2 --|> OPS
+UC6 --|> OPS
+UC7 --|> OPS
+UC8 --|> OPS
+OPS ..> UC0 : <<include>>
+
+UC2 ..> UC3 : <<include>>
+UC2 ..> UC4 : <<include>>
+UC5 ..> UC2 : <<extend>>
+UC6 ..> UC9 : <<include>>
+UC9 ..> UC3 : <<include>>
+UC9 ..> UC4 : <<include>>
+
+note right of UC9
+  Pierwszy oczekujący, który spełnia
+  wymagania i nie ma kolizji, zostaje
+  zapisany automatycznie. Pozostali
+  (SKIPPED) dostają powiadomienie.
+end note
+@enduml

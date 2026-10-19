@@ -1,0 +1,169 @@
+@startuml er
+!pragma layout smetana
+title System zapisów na zajęcia – diagram ER (PostgreSQL)
+hide circle
+skinparam linetype ortho
+skinparam shadowing false
+
+entity "app_user" as app_user {
+  * id : BIGSERIAL <<PK>>
+  --
+  * email : VARCHAR(255) <<UNIQUE>>
+  * password_hash : VARCHAR(255)
+  * full_name : VARCHAR(200)
+  * role : VARCHAR(16)  -- STUDENT | LECTURER | ADMIN
+  * created_at : TIMESTAMPTZ
+}
+
+entity "student" as student {
+  * user_id : BIGINT <<PK, FK>>
+  --
+  * index_no : VARCHAR(10) <<UNIQUE>>
+  * program : VARCHAR(100)
+  * semester : SMALLINT
+}
+
+entity "lecturer" as lecturer {
+  * user_id : BIGINT <<PK, FK>>
+  --
+  title : VARCHAR(50)
+  * department : VARCHAR(100)
+}
+
+entity "course" as course {
+  * id : BIGSERIAL <<PK>>
+  --
+  * code : VARCHAR(20) <<UNIQUE>>
+  * name : VARCHAR(200)
+  * ects : SMALLINT
+  description : TEXT
+}
+
+entity "course_prerequisite" as prereq {
+  * course_id : BIGINT <<PK, FK>>
+  * required_course_id : BIGINT <<PK, FK>>
+  --
+  CHECK (course_id <> required_course_id)
+}
+
+entity "term" as term {
+  * id : BIGSERIAL <<PK>>
+  --
+  * code : VARCHAR(10) <<UNIQUE>>  -- 2026Z
+  * starts_on : DATE
+  * ends_on : DATE
+  * enrollment_opens_at : TIMESTAMPTZ
+  * enrollment_closes_at : TIMESTAMPTZ
+  * status : VARCHAR(16)  -- PLANNED | OPEN | CLOSED
+}
+
+entity "room" as room {
+  * id : BIGSERIAL <<PK>>
+  --
+  * building : VARCHAR(20)
+  * number : VARCHAR(20)
+  * seats : SMALLINT
+  --
+  UNIQUE (building, number)
+}
+
+entity "section" as section {
+  * id : BIGSERIAL <<PK>>
+  --
+  * course_id : BIGINT <<FK>>
+  * term_id : BIGINT <<FK>>
+  * code : VARCHAR(10)  -- np. L01, C03
+  * kind : VARCHAR(16)  -- LECTURE | EXERCISE | LAB | SEMINAR
+  * capacity : SMALLINT
+  * enrolled_count : SMALLINT
+  * waitlist_limit : SMALLINT
+  * version : BIGINT
+  --
+  UNIQUE (course_id, term_id, code)
+  CHECK (enrolled_count <= capacity)
+}
+
+entity "section_lecturer" as sl {
+  * section_id : BIGINT <<PK, FK>>
+  * lecturer_id : BIGINT <<PK, FK>>
+}
+
+entity "meeting" as meeting {
+  * id : BIGSERIAL <<PK>>
+  --
+  * section_id : BIGINT <<FK>>
+  room_id : BIGINT <<FK>>
+  * weekday : SMALLINT  -- 1 = pon ... 7 = nd
+  * start_time : TIME
+  * end_time : TIME
+  * week_parity : VARCHAR(4)  -- ALL | ODD | EVEN
+  --
+  CHECK (start_time < end_time)
+}
+
+entity "enrollment" as enr {
+  * id : BIGSERIAL <<PK>>
+  --
+  * student_id : BIGINT <<FK>>
+  * section_id : BIGINT <<FK>>
+  * status : VARCHAR(16)  -- ENROLLED | DROPPED
+  * source : VARCHAR(16)  -- DIRECT | WAITLIST | ADMIN
+  * enrolled_at : TIMESTAMPTZ
+  dropped_at : TIMESTAMPTZ
+  --
+  UNIQUE (student_id, section_id) WHERE status = 'ENROLLED'
+}
+
+entity "waitlist_entry" as wl {
+  * id : BIGSERIAL <<PK>>
+  --
+  * student_id : BIGINT <<FK>>
+  * section_id : BIGINT <<FK>>
+  * status : VARCHAR(16)  -- WAITING | PROMOTED | SKIPPED | CANCELLED
+  * created_at : TIMESTAMPTZ  -- kolejność na liście
+  resolved_at : TIMESTAMPTZ
+  skip_reason : VARCHAR(255)
+  enrollment_id : BIGINT <<FK>>
+  --
+  UNIQUE (student_id, section_id) WHERE status = 'WAITING'
+}
+
+entity "completed_course" as cc {
+  * student_id : BIGINT <<PK, FK>>
+  * course_id : BIGINT <<PK, FK>>
+  * term_id : BIGINT <<PK, FK>>
+  --
+  * grade : NUMERIC(2,1)
+  * passed : BOOLEAN
+}
+
+entity "notification" as notif {
+  * id : BIGSERIAL <<PK>>
+  --
+  * user_id : BIGINT <<FK>>
+  * type : VARCHAR(32)  -- PROMOTED | SKIPPED | ...
+  * payload : JSONB
+  * created_at : TIMESTAMPTZ
+  sent_at : TIMESTAMPTZ  -- NULL = czeka w outboxie
+}
+
+app_user ||--o| student : jest
+app_user ||--o| lecturer : jest
+course ||--o{ prereq : wymaga
+course ||--o{ prereq : "jest wymagany"
+course ||--o{ section : "prowadzony w"
+term ||--o{ section
+section ||--o{ sl
+lecturer ||--o{ sl : prowadzi
+section ||--|{ meeting : "termin zajęć"
+room |o--o{ meeting : sala
+student ||--o{ enr
+section ||--o{ enr : zapisy
+student ||--o{ wl
+section ||--o{ wl : "lista oczekujących"
+wl |o--o| enr : "awans => zapis"
+student ||--o{ cc : zaliczył
+course ||--o{ cc
+term ||--o{ cc
+app_user ||--o{ notif
+@enduml
