@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zapisy na zajęcia – mock-up</title>
+<style>
+  :root { --bg:#f4f5f7; --card:#fff; --ink:#1d2330; --muted:#6b7280; --line:#e3e6eb; --acc:#1f5eff; --ok:#11804b; --warn:#a15c00; --bad:#c0392b; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.45 system-ui, sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--ink); color:#fff; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; }
+  header nav a { color:#cfd6e4; margin-left:18px; text-decoration:none; }
+  header nav a.on { color:#fff; font-weight:600; }
+  main { max-width:1100px; margin:0 auto; padding:20px 16px; display:grid; gap:20px; }
+  h2 { margin:0 0 12px; font-size:17px; }
+  h3 { margin:0; font-size:15px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:16px; }
+  .banner { background:#e7f0ff; border:1px solid #c9dafc; border-radius:8px; padding:10px 14px; font-size:14px; }
+  .search { display:flex; gap:10px; margin-bottom:12px; }
+  .search input, .search select { padding:8px; border:1px solid var(--line); border-radius:6px; font:inherit; }
+  .search input { flex:1; }
+  .course { border-top:1px solid var(--line); padding:12px 0; }
+  .course .meta { color:var(--muted); font-size:13px; margin:2px 0 8px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  td, th { padding:7px 6px; border-bottom:1px solid var(--line); text-align:left; vertical-align:middle; }
+  th { font-size:12px; color:var(--muted); font-weight:500; }
+  .seats { font-variant-numeric:tabular-nums; }
+  .bar { height:5px; background:var(--line); border-radius:3px; width:80px; margin-top:3px; }
+  .bar i { display:block; height:100%; border-radius:3px; background:var(--ok); }
+  .bar i.full { background:var(--bad); }
+  button { border:0; border-radius:6px; padding:6px 12px; font:inherit; font-size:13px; cursor:pointer; }
+  .primary { background:var(--acc); color:#fff; }
+  .secondary { background:#fff; border:1px solid var(--acc); color:var(--acc); }
+  .disabled { background:#eceef1; color:#9aa1ad; cursor:not-allowed; }
+  .msg { font-size:12px; }
+  .msg.warn { color:var(--warn); } .msg.bad { color:var(--bad); } .msg.ok { color:var(--ok); }
+  .tag { font-size:11px; padding:2px 7px; border-radius:10px; background:#e7f6ee; color:var(--ok); white-space:nowrap; }
+  .tag.wait { background:#fff4e0; color:var(--warn); }
+  .grid2 { display:grid; grid-template-columns: 1.6fr 1fr; gap:20px; align-items:start; }
+  .tt { display:grid; grid-template-columns:44px repeat(5,1fr); font-size:11px; }
+  .tt div { border-bottom:1px solid var(--line); min-height:26px; padding:2px; }
+  .tt .h { font-weight:600; color:var(--muted); text-align:center; }
+  .tt .t { color:var(--muted); }
+  .slot { background:#e7f0ff; border-left:3px solid var(--acc); border-radius:3px; padding:2px 4px; }
+  .slot.lab { background:#e7f6ee; border-color:var(--ok); }
+  .slot.odd { background:repeating-linear-gradient(45deg,#fff4e0,#fff4e0 4px,#fff 4px,#fff 8px); border-color:var(--warn); }
+  @media (max-width:800px){ .grid2 { grid-template-columns:1fr; } header nav { display:none; } table { font-size:13px; } }
+</style>
+</head>
+<body>
+<header>
+  <strong>Zapisy na zajęcia</strong>
+  <nav><a class="on" href="#">Zapisy</a><a href="#">Mój plan</a><a href="#">Listy oczekujących</a><a href="#">Wyloguj</a></nav>
+</header>
+<main>
+  <div class="banner">Tura zapisów <b>2026Z</b> jest otwarta do <b>10.10.2026, 23:59</b>. Zalogowano: Anna Kowalska (400123), Informatyka, sem. 3.</div>
+
+  <div class="grid2">
+    <section class="card">
+      <h2>Katalog kursów</h2>
+      <div class="search"><input value="inżynieria"><select><option>Wszystkie typy</option><option>Laboratorium</option></select></div>
+
+      <div class="course">
+        <h3>IO – Inżynieria oprogramowania <span class="tag">wymagania spełnione</span></h3>
+        <div class="meta">5 ECTS · wymaga: PO (zaliczony 2026L, 4.5)</div>
+        <table>
+          <tr><th>Grupa</th><th>Termin</th><th>Prowadzący</th><th>Miejsca</th><th></th></tr>
+          <tr><td>W01 wykład</td><td>pon 10:00–11:30, s. 3.21</td><td>dr M. Zachara</td>
+              <td class="seats">112/150<div class="bar"><i style="width:75%"></i></div></td>
+              <td><span class="tag">zapisana</span></td></tr>
+          <tr><td>L03 lab</td><td>czw 8:00–9:30, s. 4.27</td><td>mgr J. Nowak</td>
+              <td class="seats">15/15<div class="bar"><i class="full" style="width:100%"></i></div></td>
+              <td><span class="tag wait">lista: miejsce 2 z 4</span></td></tr>
+          <tr><td>L04 lab</td><td>czw 9:45–11:15, s. 4.27</td><td>mgr J. Nowak</td>
+              <td class="seats">14/15<div class="bar"><i style="width:93%"></i></div></td>
+              <td><button class="disabled" disabled>Zapisz</button><div class="msg bad">kolizja z: BD L05 (czw 9:30–11:00)</div></td></tr>
+          <tr><td>L05 lab</td><td>pt 12:00–13:30, s. 4.28</td><td>mgr K. Wiśniewska</td>
+              <td class="seats">9/15<div class="bar"><i style="width:60%"></i></div></td>
+              <td><button class="primary">Zapisz</button></td></tr>
+        </table>
+      </div>
+
+      <div class="course">
+        <h3>ZIO – Zaawansowana inżynieria oprogramowania</h3>
+        <div class="meta">4 ECTS · wymaga: IO <span class="msg bad">(niezaliczony – zapis niemożliwy)</span></div>
+      </div>
+
+      <div class="course">
+        <h3>TS – Testowanie oprogramowania</h3>
+        <div class="meta">3 ECTS · bez wymagań wstępnych</div>
+        <table>
+          <tr><th>Grupa</th><th>Termin</th><th>Prowadzący</th><th>Miejsca</th><th></th></tr>
+          <tr><td>C01 ćw.</td><td>śr 12:00–13:30, tyg. parzyste</td><td>dr A. Lis</td>
+              <td class="seats">30/30<div class="bar"><i class="full" style="width:100%"></i></div></td>
+              <td><button class="secondary">Dołącz do listy</button><div class="msg warn">brak miejsc · 3 osoby czekają</div></td></tr>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Mój plan – 2026Z</h2>
+      <div class="tt">
+        <div></div><div class="h">pon</div><div class="h">wt</div><div class="h">śr</div><div class="h">czw</div><div class="h">pt</div>
+        <div class="t">8:00</div><div></div><div></div><div></div><div></div><div></div>
+        <div class="t">9:30</div><div></div><div></div><div></div><div><div class="slot lab">BD L05<br>9:30–11:00</div></div><div></div>
+        <div class="t">10:00</div><div><div class="slot">IO W01<br>10:00–11:30</div></div><div></div><div></div><div></div><div></div>
+        <div class="t">12:00</div><div></div><div><div class="slot">BD W01<br>12:00–13:30</div></div><div><div class="slot odd">AM3 C02<br>tyg. nieparz.</div></div><div></div><div></div>
+        <div class="t">14:00</div><div></div><div></div><div></div><div></div><div></div>
+      </div>
+      <p class="msg" style="color:var(--muted)">Paski ukośne = zajęcia co dwa tygodnie. Grupa w tygodnie parzyste w tym samym czasie nie koliduje.</p>
+
+      <h2 style="margin-top:16px">Powiadomienia</h2>
+      <p class="msg ok">✓ 08.10 – Zwolniło się miejsce w BD L05. Zostałaś zapisana automatycznie z listy oczekujących.</p>
+      <p class="msg warn">! 06.10 – Pominięto Cię na liście PS L02: kolizja z BD L05.</p>
+    </section>
+  </div>
+</main>
+</body>
+</html>
