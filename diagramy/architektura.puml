@@ -20,10 +20,12 @@ package "Warstwa aplikacji (backend, FastAPI)" {
   [Wykrywanie kolizji\n(ScheduleConflictDetector)] as kol
   [Listy oczekujących\n(WaitlistService)] as wait
   [Powiadomienia\n(NotificationService)] as notif
+  [Użytkownicy i uprawnienia\n(UserService)\nkonta, role, logowanie] as users
+  [Historia studiów\n(StudentRecordsService)\nimport zaliczeń] as records
 }
 
 package "Procesy w tle" {
-  [Worker\n(otwieranie/zamykanie tur,\nwysyłka e-maili z outboxa)] as worker
+  [Worker\n(otwieranie/zamykanie tur,\nwygaszanie list oczekujących,\naudyt niezmienników,\nwysyłka e-maili z outboxa)] as worker
 }
 
 database "PostgreSQL\n(transakcje ACID,\nSELECT ... FOR UPDATE)" as db
@@ -36,6 +38,9 @@ spa --> api : REST/JSON
 api --> katalog
 api --> zapisy
 api --> wait
+api --> notif : lista\npowiadomień
+api --> users
+api --> records
 zapisy --> wym : czy zaliczone\nprzedmioty?
 zapisy --> kol : czy koliduje\nz planem?
 zapisy --> wait : zwolnione miejsce:\nawans z listy
@@ -45,10 +50,14 @@ wait --> zapisy : zapis awansowanego
 wait --> notif
 zapisy --> notif
 notif --> db : outbox
+worker --> wait : zamknięcie tury:\nwygaś listy
 worker --> db
 worker --> smtp
 katalog --> db
 zapisy --> db
 wait --> db
 wym --> db
+kol --> db
+users --> db
+records --> db
 @enduml

@@ -44,6 +44,7 @@ entity "course_prerequisite" as prereq {
   * required_course_id : BIGINT <<PK, FK>>
   --
   CHECK (course_id <> required_course_id)
+  TRIGGER: brak cykli wymagań
 }
 
 entity "term" as term {
@@ -51,10 +52,20 @@ entity "term" as term {
   --
   * code : VARCHAR(10) <<UNIQUE>>  -- 2026Z
   * starts_on : DATE
-  * ends_on : DATE
-  * enrollment_opens_at : TIMESTAMPTZ
-  * enrollment_closes_at : TIMESTAMPTZ
+  * ends_on : DATE  -- tydzień 1 (nieparzysty) od starts_on
+}
+
+entity "enrollment_round" as round {
+  * id : BIGSERIAL <<PK>>
+  --
+  * term_id : BIGINT <<FK>>
+  * name : VARCHAR(50)  -- np. tura 1
+  * opens_at : TIMESTAMPTZ
+  * closes_at : TIMESTAMPTZ
   * status : VARCHAR(16)  -- PLANNED | OPEN | CLOSED
+  --
+  UNIQUE (term_id, name)
+  UNIQUE (term_id) WHERE status = 'OPEN'
 }
 
 entity "room" as room {
@@ -77,7 +88,6 @@ entity "section" as section {
   * capacity : SMALLINT
   * enrolled_count : SMALLINT
   * waitlist_limit : SMALLINT
-  * version : BIGINT
   --
   UNIQUE (course_id, term_id, code)
   CHECK (enrolled_count <= capacity)
@@ -119,8 +129,8 @@ entity "waitlist_entry" as wl {
   --
   * student_id : BIGINT <<FK>>
   * section_id : BIGINT <<FK>>
-  * status : VARCHAR(16)  -- WAITING | PROMOTED | SKIPPED | CANCELLED
-  * created_at : TIMESTAMPTZ  -- kolejność na liście
+  * status : VARCHAR(16)  -- WAITING | PROMOTED | SKIPPED | CANCELLED | EXPIRED
+  * created_at : TIMESTAMPTZ  -- do wyświetlania; kolejność = id
   resolved_at : TIMESTAMPTZ
   skip_reason : VARCHAR(255)
   enrollment_id : BIGINT <<FK>>
@@ -133,15 +143,15 @@ entity "completed_course" as cc {
   * course_id : BIGINT <<PK, FK>>
   * term_id : BIGINT <<PK, FK>>
   --
-  * grade : NUMERIC(2,1)
-  * passed : BOOLEAN
+  * grade : NUMERIC(2,1)  -- 2.0 ... 5.0
+  * passed : BOOLEAN  -- GENERATED: grade >= 3.0
 }
 
 entity "notification" as notif {
   * id : BIGSERIAL <<PK>>
   --
   * user_id : BIGINT <<FK>>
-  * type : VARCHAR(32)  -- PROMOTED | SKIPPED | ...
+  * type : VARCHAR(32)  -- PROMOTED | SKIPPED | CANCELLED | EXPIRED | ...
   * payload : JSONB
   * created_at : TIMESTAMPTZ
   sent_at : TIMESTAMPTZ  -- NULL = czeka w outboxie
@@ -153,6 +163,7 @@ course ||--o{ prereq : wymaga
 course ||--o{ prereq : "jest wymagany"
 course ||--o{ section : "prowadzony w"
 term ||--o{ section
+term ||--o{ round : "tury zapisów"
 section ||--o{ sl
 lecturer ||--o{ sl : prowadzi
 section ||--|{ meeting : "termin zajęć"

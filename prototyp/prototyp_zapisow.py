@@ -3,13 +3,16 @@
 Sprawdza:
   1. wyścig o ostatnie miejsca w chwili otwarcia zapisów (wersja naiwna vs bezpieczna),
   2. wymagania wstępne (zaliczone przedmioty),
-     oraz regułę "jedna grupa danego typu na przedmiot" i limit listy oczekujących (scen. 5),
   3. wykrywanie kolizji w planie: dzień, godziny, tygodnie parzyste/nieparzyste,
   4. listę oczekujących: automatyczny zapis po zwolnieniu miejsca, pomijanie osób,
-     które w międzyczasie mają kolizję, równoczesne wypisy, zwiększenie limitu.
+     które w międzyczasie mają kolizję, równoczesne wypisy, zmianę limitu,
+  5. regułę "jedna grupa danego typu na przedmiot", limit listy oczekujących
+     i odmowę ponownego zapisu do tej samej grupy,
+  6. decyzje dziekanatu (zapis ponad limit, bez wymagań) i zamknięcie tury.
 
 Tylko biblioteka standardowa (sqlite3 + threading). W docelowym systemie
-(PostgreSQL) rolę BEGIN IMMEDIATE pełni SELECT ... FOR UPDATE na wierszu grupy.
+(PostgreSQL) rolę BEGIN IMMEDIATE pełnią blokady wierszy SELECT ... FOR UPDATE
+(najpierw student, potem grupa) - patrz schemat.sql.
 
 Uruchomienie:  python3 prototyp_zapisow.py
 """
@@ -21,6 +24,11 @@ import threading
 import time
 
 SCHEMA = """
+CREATE TABLE enrollment_round (
+    id     INTEGER PRIMARY KEY,
+    status TEXT NOT NULL                    -- PLANNED | OPEN | CLOSED
+);
+
 CREATE TABLE student (
     id       INTEGER PRIMARY KEY,
     index_no TEXT NOT NULL UNIQUE
@@ -40,7 +48,8 @@ CREATE TABLE course_prerequisite (
 CREATE TABLE completed_course (
     student_id INTEGER NOT NULL REFERENCES student(id),
     course_id  INTEGER NOT NULL REFERENCES course(id),
-    passed     INTEGER NOT NULL,
+    grade      REAL NOT NULL,
+    passed     INTEGER GENERATED ALWAYS AS (grade >= 3.0) STORED,
     PRIMARY KEY (student_id, course_id)
 );
 
@@ -78,7 +87,7 @@ CREATE TABLE waitlist_entry (
     id            INTEGER PRIMARY KEY,      -- rosnące id = kolejność na liście
     student_id    INTEGER NOT NULL REFERENCES student(id),
     section_id    INTEGER NOT NULL REFERENCES section(id),
-    status        TEXT NOT NULL,            -- WAITING | PROMOTED | SKIPPED | CANCELLED
+    status        TEXT NOT NULL,            -- WAITING | PROMOTED | SKIPPED | CANCELLED | EXPIRED
     skip_reason   TEXT,
     enrollment_id INTEGER REFERENCES enrollment(id)
 );
@@ -114,6 +123,14 @@ class AlreadyInCourse(EnrollmentError):
     pass
 
 
+class AlreadyInSection(EnrollmentError):
+    pass
+
+
+class RoundClosed(EnrollmentError):
+    pass
+
+
 def connect(path):
     conn = sqlite3.connect(path, timeout=30, isolation_level=None, check_same_thread=False)
     conn.execute("PRAGMA foreign_keys = ON")
@@ -125,6 +142,7 @@ def create_db():
     conn = connect(path)
     conn.execute("PRAGMA journal_mode = WAL")
     conn.executescript(SCHEMA)
+    conn.execute("INSERT INTO enrollment_round(status) VALUES ('OPEN')")
     return path, conn
 
 
@@ -199,16 +217,32 @@ def same_course_and_kind(conn, student_id, section_id):
     return row[0] if row else None
 
 
-def check_rules(conn, student_id, section_id):
+def check_rules(conn, student_id, section_id, promoting=False, check_prerequisites=True):
+    """Wszystkie reguły zapisu. promoting=True przy awansie z listy: wtedy własny
+    wpis WAITING studenta w tej grupie jest oczekiwany, a nie jest błędem."""
+    if conn.execute("SELECT 1 FROM enrollment WHERE student_id = ? AND section_id = ? "
+                    "AND status = 'ENROLLED'", (student_id, section_id)).fetchone():
+        raise AlreadyInSection("już zapisany do tej grupy")
+    if not promoting and conn.execute(
+            "SELECT 1 FROM waitlist_entry WHERE student_id = ? AND section_id = ? "
+            "AND status = 'WAITING'", (student_id, section_id)).fetchone():
+        raise AlreadyInSection("już czeka na liście tej grupy")
     taken = same_course_and_kind(conn, student_id, section_id)
     if taken:
         raise AlreadyInCourse(f"już zapisany do grupy {taken} tego przedmiotu")
-    missing = missing_prerequisites(conn, student_id, section_id)
-    if missing:
-        raise MissingPrerequisite(f"brak zaliczenia: {', '.join(missing)}")
+    if check_prerequisites:
+        missing = missing_prerequisites(conn, student_id, section_id)
+        if missing:
+            raise MissingPrerequisite(f"brak zaliczenia: {', '.join(missing)}")
     conflicts = find_conflicts(conn, student_id, section_id)
     if conflicts:
         raise ScheduleConflict(f"kolizja z: {', '.join(conflicts)}")
+
+
+def require_open_round(conn):
+    status = conn.execute("SELECT status FROM enrollment_round").fetchone()[0]
+    if status != "OPEN":
+        raise RoundClosed("tura zapisów jest zamknięta")
 
 
 def notify(conn, student_id, type_, message):
@@ -229,14 +263,40 @@ def _take_seat(conn, section_id):
     return cur.rowcount == 1
 
 
+def _has_free_seat(conn, section_id):
+    return conn.execute("SELECT enrolled_count < capacity FROM section WHERE id = ?",
+                        (section_id,)).fetchone()[0] == 1
+
+
+def _insert_enrollment(conn, student_id, section_id, source):
+    """Zapis + anulowanie wpisów studenta na listach innych grup tego samego
+    przedmiotu i typu. Po zapisie na L05 z IO czekanie na L03 z IO nie ma sensu,
+    a zajmowałoby miejsce na liście (waitlist_limit) innym studentom."""
+    enr_id = add(conn, "INSERT INTO enrollment(student_id, section_id, status, source) "
+                       "VALUES (?, ?, 'ENROLLED', ?)", student_id, section_id, source)
+    stale = conn.execute(
+        "SELECT w.id, o.code FROM waitlist_entry w "
+        "JOIN section o ON o.id = w.section_id "
+        "JOIN section n ON n.id = ? "
+        "WHERE w.student_id = ? AND w.status = 'WAITING' AND o.id <> n.id "
+        "  AND o.course_id = n.course_id AND o.kind = n.kind",
+        (section_id, student_id),
+    ).fetchall()
+    for entry_id, code in stale:
+        conn.execute("UPDATE waitlist_entry SET status = 'CANCELLED' WHERE id = ?", (entry_id,))
+        notify(conn, student_id, "CANCELLED",
+               f"Usunięto Cię z listy {code}: masz już grupę tego przedmiotu.")
+    return enr_id
+
+
 def enroll(conn, student_id, section_id, join_waitlist=True):
     """UC2. Zwraca 'ENROLLED' albo 'WAITLISTED'."""
     conn.execute("BEGIN IMMEDIATE")
     try:
+        require_open_round(conn)
         check_rules(conn, student_id, section_id)
         if _take_seat(conn, section_id):
-            add(conn, "INSERT INTO enrollment(student_id, section_id, status, source) "
-                      "VALUES (?, ?, 'ENROLLED', 'DIRECT')", student_id, section_id)
+            _insert_enrollment(conn, student_id, section_id, "DIRECT")
             result = "ENROLLED"
         elif join_waitlist:  # UC5 rozszerza UC2 w punkcie "brak wolnych miejsc"
             waiting, limit = conn.execute(
@@ -269,8 +329,9 @@ def naive_enroll(conn, student_id, section_id):
     conn.execute("BEGIN IMMEDIATE")
     conn.execute("INSERT INTO enrollment(student_id, section_id, status, source) "
                  "VALUES (?, ?, 'ENROLLED', 'DIRECT')", (student_id, section_id))
-    # Nadpisanie licznika wartością policzoną wcześniej (lost update), bez CHECK-a
-    # licznik zostaje zaniżony, a zapisanych jest więcej niż miejsc.
+    # Nadpisanie licznika wartością policzoną wcześniej (lost update). CHECK na
+    # liczniku tu nie pomaga: licznik jest zaniżony (<= capacity), a wierszy
+    # zapisów jest więcej niż miejsc.
     conn.execute("UPDATE section SET enrolled_count = ? WHERE id = ?", (count + 1, section_id))
     conn.execute("COMMIT")
 
@@ -278,43 +339,47 @@ def naive_enroll(conn, student_id, section_id):
 def promote_from_waitlist(conn, section_id):
     """UC9. Wywoływane WEWNĄTRZ transakcji, która zwolniła miejsce lub zwiększyła limit.
 
-    Bierze oczekujących po kolei. Każdego sprawdza ponownie (od dopisania do listy
-    mógł się zapisać na kolidujące zajęcia). Kogo nie da się zapisać, oznacza jako
+    Najpierw sprawdza, czy jest wolne miejsce - bez niego nikogo nie pomija, bo
+    oczekujący może jeszcze usunąć kolizję, zanim miejsce się zwolni. Potem bierze
+    oczekujących po kolei i każdego sprawdza ponownie (od dopisania do listy mógł
+    się zapisać na kolidujące zajęcia). Kogo nie da się zapisać, oznacza jako
     SKIPPED z powodem. Kończy, gdy brak miejsc albo pusta lista. Zwraca listę
     (student_id, wynik).
     """
     results = []
-    while True:
+    while _has_free_seat(conn, section_id):
         entry = conn.execute(
             "SELECT id, student_id FROM waitlist_entry "
             "WHERE section_id = ? AND status = 'WAITING' ORDER BY id LIMIT 1",
             (section_id,),
         ).fetchone()
         if entry is None:
-            return results
+            break
         entry_id, student_id = entry
         try:
-            check_rules(conn, student_id, section_id)
+            check_rules(conn, student_id, section_id, promoting=True)
         except EnrollmentError as e:
             conn.execute("UPDATE waitlist_entry SET status = 'SKIPPED', skip_reason = ? WHERE id = ?",
                          (str(e), entry_id))
             notify(conn, student_id, "SKIPPED", f"Nie zapisano z listy oczekujących: {e}")
             results.append((student_id, f"SKIPPED ({e})"))
             continue
-        if not _take_seat(conn, section_id):
-            return results
-        enr_id = add(conn, "INSERT INTO enrollment(student_id, section_id, status, source) "
-                           "VALUES (?, ?, 'ENROLLED', 'WAITLIST')", student_id, section_id)
+        assert _take_seat(conn, section_id)
+        enr_id = _insert_enrollment(conn, student_id, section_id, "WAITLIST")
         conn.execute("UPDATE waitlist_entry SET status = 'PROMOTED', enrollment_id = ? WHERE id = ?",
                      (enr_id, entry_id))
         notify(conn, student_id, "PROMOTED", "Zwolniło się miejsce - zostałeś zapisany.")
         results.append((student_id, "PROMOTED"))
+    return results
 
 
-def drop(conn, student_id, section_id):
-    """UC6: wypis + automatyczny awans z listy w tej samej transakcji."""
+def drop(conn, student_id, section_id, by_admin=False):
+    """UC6 (student, tylko w otwartej turze) / UC14 (dziekanat, zawsze):
+    wypis + automatyczny awans z listy w tej samej transakcji."""
     conn.execute("BEGIN IMMEDIATE")
     try:
+        if not by_admin:
+            require_open_round(conn)
         cur = conn.execute(
             "UPDATE enrollment SET status = 'DROPPED' "
             "WHERE student_id = ? AND section_id = ? AND status = 'ENROLLED'",
@@ -332,13 +397,62 @@ def drop(conn, student_id, section_id):
 
 
 def change_capacity(conn, section_id, new_capacity):
-    """UC13: zmiana limitu; przy zwiększeniu od razu awans z listy."""
+    """UC13: zmiana limitu (najwyżej do liczby zapisanych pilnuje CHECK);
+    przy wolnym miejscu od razu awans z listy."""
     conn.execute("BEGIN IMMEDIATE")
     try:
         conn.execute("UPDATE section SET capacity = ? WHERE id = ?", (new_capacity, section_id))
         promoted = promote_from_waitlist(conn, section_id)
         conn.execute("COMMIT")
         return promoted
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+
+
+def admin_enroll(conn, student_id, section_id, override_prerequisites=False):
+    """UC14: zapis decyzją dziekanatu, także poza turą.
+
+    Dziekanat może pominąć wymagania wstępne (np. wpis warunkowy). Kolizje
+    i regułę "jedna grupa danego typu" sprawdzamy zawsze. Przy pełnej grupie zapis
+    ponad limit = zwiększenie limitu o 1 w tej samej transakcji, więc
+    CHECK (enrolled_count <= capacity) nadal obowiązuje, a kolejka nie traci
+    miejsca. W systemie docelowym limit nie może przekroczyć liczby miejsc w sali.
+    """
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        check_rules(conn, student_id, section_id, promoting=True,
+                    check_prerequisites=not override_prerequisites)
+        if not _take_seat(conn, section_id):
+            conn.execute("UPDATE section SET capacity = capacity + 1 WHERE id = ?", (section_id,))
+            assert _take_seat(conn, section_id)
+        enr_id = _insert_enrollment(conn, student_id, section_id, "ADMIN")
+        # Jeśli student czekał na tę grupę, jego wpis kończy się zapisem.
+        conn.execute("UPDATE waitlist_entry SET status = 'PROMOTED', enrollment_id = ? "
+                     "WHERE student_id = ? AND section_id = ? AND status = 'WAITING'",
+                     (enr_id, student_id, section_id))
+        conn.execute("COMMIT")
+        return "ENROLLED"
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+
+
+def close_round(conn):
+    """UC16/UC17: zamknięcie tury. Listy oczekujących wygasają (EXPIRED), żeby
+    późniejszy wypis przez dziekanat nie zapisał nikogo automatycznie po turze."""
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        conn.execute("UPDATE enrollment_round SET status = 'CLOSED'")
+        expired = conn.execute(
+            "SELECT w.id, w.student_id, s.code FROM waitlist_entry w "
+            "JOIN section s ON s.id = w.section_id WHERE w.status = 'WAITING'"
+        ).fetchall()
+        for entry_id, student_id, code in expired:
+            conn.execute("UPDATE waitlist_entry SET status = 'EXPIRED' WHERE id = ?", (entry_id,))
+            notify(conn, student_id, "EXPIRED", f"Tura zamknięta - lista {code} wygasła.")
+        conn.execute("COMMIT")
+        return [s for _, s, _ in expired]
     except Exception:
         conn.execute("ROLLBACK")
         raise
@@ -366,6 +480,14 @@ def check_invariants(conn):
         "WHERE w.status = 'WAITING' AND e.status = 'ENROLLED'"
     ).fetchall()
     assert not both, f"student jednocześnie zapisany i oczekujący: {both}"
+    pointless = conn.execute(
+        "SELECT w.student_id, w.section_id FROM waitlist_entry w "
+        "JOIN section ws ON ws.id = w.section_id "
+        "JOIN enrollment e ON e.student_id = w.student_id AND e.status = 'ENROLLED' "
+        "JOIN section es ON es.id = e.section_id "
+        "WHERE w.status = 'WAITING' AND es.course_id = ws.course_id AND es.kind = ws.kind"
+    ).fetchall()
+    assert not pointless, f"czeka na grupę przedmiotu, z którego ma już grupę tego typu: {pointless}"
 
 
 # --- scenariusze -------------------------------------------------------------
@@ -412,11 +534,17 @@ def scenario_race(fn, label):
     return path, conn, enrolled
 
 
+def waitlist_status(conn, student_id, section_id):
+    return conn.execute("SELECT status FROM waitlist_entry WHERE student_id = ? AND section_id = ? "
+                        "ORDER BY id DESC LIMIT 1", (student_id, section_id)).fetchone()[0]
+
+
 def main():
     print("== 1. Otwarcie zapisów: 30 studentów jednocześnie, grupa na 10 miejsc ==")
     _, _, enrolled = scenario_race(lambda c, s, sec: naive_enroll(c, s, sec), "naiwny ")
     if enrolled > 10:
-        print("    -> wersja naiwna zapisała więcej osób niż jest miejsc (overbooking)")
+        print("    -> wersja naiwna zapisała więcej osób niż jest miejsc (overbooking),")
+        print("       a CHECK na liczniku tego nie wykrył - licznik jest zaniżony")
     path, conn, enrolled = scenario_race(lambda c, s, sec: enroll(c, s, sec), "bezpieczny")
     waiting = conn.execute("SELECT COUNT(*) FROM waitlist_entry WHERE status = 'WAITING'").fetchone()[0]
     assert enrolled == 10 and waiting == 20
@@ -430,13 +558,13 @@ def main():
     add(conn, "INSERT INTO course_prerequisite VALUES (?, ?)", am2, am1)
     am2_c1 = add_section(conn, am2, "C01", 30, [(2, "10:00", "11:30")])
     ania, bartek = make_students(conn, 2)
-    add(conn, "INSERT INTO completed_course VALUES (?, ?, 1)", ania, am1)
-    add(conn, "INSERT INTO completed_course VALUES (?, ?, 0)", bartek, am1)  # niezaliczony
-    print(f"    Ania (zaliczyła AM1):     {enroll(conn, ania, am2_c1)}")
+    add(conn, "INSERT INTO completed_course(student_id, course_id, grade) VALUES (?, ?, 4.5)", ania, am1)
+    add(conn, "INSERT INTO completed_course(student_id, course_id, grade) VALUES (?, ?, 2.0)", bartek, am1)
+    print(f"    Ania (AM1 na 4.5):         {enroll(conn, ania, am2_c1)}")
     try:
         enroll(conn, bartek, am2_c1)
     except MissingPrerequisite as e:
-        print(f"    Bartek (nie zaliczył AM1): odrzucono - {e}")
+        print(f"    Bartek (AM1 na 2.0):       odrzucono - {e}")
 
     print("\n== 3. Wykrywanie kolizji w planie ==")
     path, conn = create_db()
@@ -472,6 +600,9 @@ def main():
     print(f"    grupa L01 pełna (2/2), oczekują kolejno: {w1}, {w2}, {w3}, {w4}")
     enroll(conn, w1, bd)  # pierwszy oczekujący zapisał się w międzyczasie na kolidujące zajęcia
     print(f"    student {w1} zapisał się tymczasem na BD L05 (kolizja z L01)")
+    print(f"    dziekanat zapisuje limit bez zmian (2) -> {change_capacity(conn, lab, 2)}")
+    assert waitlist_status(conn, w1, lab) == "WAITING"
+    print(f"    -> brak wolnego miejsca, więc student {w1} nie został pominięty (nadal czeka)")
     print(f"    student {s1} wypisuje się -> {drop(conn, s1, lab)}")
     check_invariants(conn)
 
@@ -505,7 +636,7 @@ def main():
     for n in notes:
         print(f"      {n[0]}: {n[1]:<8} {n[2]}")
 
-    print("\n== 5. Jedna grupa danego typu na przedmiot, limit listy oczekujących ==")
+    print("\n== 5. Jedna grupa danego typu na przedmiot, limit listy, ponowny zapis ==")
     path, conn = create_db()
     io = add(conn, "INSERT INTO course(code) VALUES ('IO')")
     w01 = add_section(conn, io, "W01", 150, [(1, "10:00", "11:30")], kind="LECTURE")
@@ -513,21 +644,55 @@ def main():
     l05 = add_section(conn, io, "L05", 15, [(5, "12:00", "13:30")])
     ola, piotr, kuba = make_students(conn, 3)
     enroll(conn, ola, l03)
+    try:
+        enroll(conn, ola, l03)
+    except AlreadyInSection as e:
+        print(f"    Ola ponownie do L03:          odrzucono - {e}")
     print(f"    Piotr do pełnej L03:          {enroll(conn, piotr, l03)}")
+    try:
+        enroll(conn, piotr, l03)
+    except AlreadyInSection as e:
+        print(f"    Piotr ponownie do L03:        odrzucono - {e}")
     try:
         enroll(conn, kuba, l03)
     except SectionFull as e:
         print(f"    Kuba do pełnej L03:           odrzucono - {e}")
     print(f"    Piotr na wykład W01:          {enroll(conn, piotr, w01)}  (inny typ zajęć - wolno)")
     print(f"    Piotr do L05 (czeka na L03):  {enroll(conn, piotr, l05)}")
+    print(f"    -> wpis Piotra na liście L03: {waitlist_status(conn, piotr, l03)} (zwolnił miejsce na liście)")
     try:
         enroll(conn, piotr, l03, join_waitlist=False)
     except AlreadyInCourse as e:
         print(f"    Piotr ponownie do L03:        odrzucono - {e}")
+    print(f"    Kuba do pełnej L03:           {enroll(conn, kuba, l03)}")
     print(f"    Ola wypisuje się z L03 ->     {drop(conn, ola, l03)}")
-    assert conn.execute("SELECT status FROM waitlist_entry WHERE student_id = ?", (piotr,)).fetchone()[0] == "SKIPPED"
     check_invariants(conn)
-    print("    -> Piotr nie dostał drugiego laboratorium z IO; L03 ma wolne miejsce i pustą listę")
+    print("    -> Piotr ma jedno laboratorium z IO, miejsce w L03 dostał Kuba")
+
+    print("\n== 6. Decyzje dziekanatu i zamknięcie tury ==")
+    path, conn = create_db()
+    po = add(conn, "INSERT INTO course(code) VALUES ('PO')")
+    io = add(conn, "INSERT INTO course(code) VALUES ('IO')")
+    add(conn, "INSERT INTO course_prerequisite VALUES (?, ?)", io, po)
+    l07 = add_section(conn, io, "L07", 2, [(2, "14:00", "15:30")])
+    ola, piotr, kuba, ewa = make_students(conn, 4)
+    for s in (ola, piotr, kuba):
+        add(conn, "INSERT INTO completed_course(student_id, course_id, grade) VALUES (?, ?, 4.0)", s, po)
+    enroll(conn, ola, l07)
+    enroll(conn, piotr, l07)
+    print(f"    L07 pełna (2/2), Kuba:        {enroll(conn, kuba, l07)}")
+    print(f"    dziekanat zapisuje Ewę bez PO, ponad limit: "
+          f"{admin_enroll(conn, ewa, l07, override_prerequisites=True)}")
+    cap, cnt = conn.execute("SELECT capacity, enrolled_count FROM section WHERE id = ?", (l07,)).fetchone()
+    print(f"    -> L07: {cnt}/{cap} (limit +1), Kuba nadal: {waitlist_status(conn, kuba, l07)}")
+    check_invariants(conn)
+    print(f"    zamknięcie tury -> wygasłe wpisy studentów: {close_round(conn)}")
+    try:
+        drop(conn, ola, l07)
+    except RoundClosed as e:
+        print(f"    Ola wypisuje się po turze:    odrzucono - {e}")
+    print(f"    dziekanat wypisuje Olę ->     {drop(conn, ola, l07, by_admin=True)}  (nikt nie awansuje po turze)")
+    check_invariants(conn)
 
     print("\nWszystkie niezmienniki spełnione.")
 

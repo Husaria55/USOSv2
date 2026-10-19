@@ -53,7 +53,7 @@
   <nav><a class="on" href="#">Zapisy</a><a href="#">Mój plan</a><a href="#">Listy oczekujących</a><a href="#">Wyloguj</a></nav>
 </header>
 <main>
-  <div class="banner">Tura zapisów <b>2026Z</b> jest otwarta do <b>10.10.2026, 23:59</b>. Zalogowano: Anna Kowalska (400123), Informatyka, sem. 3.</div>
+  <div class="banner">Tura zapisów <b>2026Z – tura 1</b> jest otwarta do <b>10.10.2026, 23:59</b>. Zalogowano: Anna Kowalska (400123), Informatyka, sem. 3.</div>
 
   <div class="grid2">
     <section class="card">
@@ -67,16 +67,16 @@
           <tr><th>Grupa</th><th>Termin</th><th>Prowadzący</th><th>Miejsca</th><th></th></tr>
           <tr><td>W01 wykład</td><td>pon 10:00–11:30, s. 3.21</td><td>dr M. Zachara</td>
               <td class="seats">112/150<div class="bar"><i style="width:75%"></i></div></td>
-              <td><span class="tag">zapisana</span></td></tr>
+              <td><span class="tag">zapisana</span> <button class="secondary">Wypisz</button></td></tr>
           <tr><td>L03 lab</td><td>czw 8:00–9:30, s. 4.27</td><td>mgr J. Nowak</td>
               <td class="seats">15/15<div class="bar"><i class="full" style="width:100%"></i></div></td>
-              <td><span class="tag wait">lista: miejsce 2 z 4</span></td></tr>
+              <td><span class="tag wait">lista: miejsce 2 z 4</span> <button class="secondary">Zrezygnuj</button></td></tr>
           <tr><td>L04 lab</td><td>czw 9:45–11:15, s. 4.27</td><td>mgr J. Nowak</td>
               <td class="seats">14/15<div class="bar"><i style="width:93%"></i></div></td>
               <td><button class="disabled" disabled>Zapisz</button><div class="msg bad">kolizja z: BD L05 (czw 9:30–11:00)</div></td></tr>
           <tr><td>L05 lab</td><td>pt 12:00–13:30, s. 4.28</td><td>mgr K. Wiśniewska</td>
               <td class="seats">9/15<div class="bar"><i style="width:60%"></i></div></td>
-              <td><button class="primary">Zapisz</button></td></tr>
+              <td><button class="primary">Zapisz</button><div class="msg warn">zapis usunie Cię z listy L03</div></td></tr>
         </table>
       </div>
 
@@ -110,8 +110,8 @@
       <p class="msg" style="color:var(--muted)">Paski ukośne = zajęcia co dwa tygodnie. Grupa w tygodnie parzyste w tym samym czasie nie koliduje.</p>
 
       <h2 style="margin-top:16px">Powiadomienia</h2>
-      <p class="msg ok">✓ 08.10 – Zwolniło się miejsce w BD L05. Zostałaś zapisana automatycznie z listy oczekujących.</p>
-      <p class="msg warn">! 06.10 – Pominięto Cię na liście PS L02: kolizja z BD L05.</p>
+      <p class="msg warn">! 08.10 – Pominięto Cię na liście PS L02: kolizja z BD L05.</p>
+      <p class="msg ok">✓ 06.10 – Zwolniło się miejsce w BD L05. Zostałaś zapisana automatycznie z listy oczekujących.</p>
     </section>
   </div>
 </main>
