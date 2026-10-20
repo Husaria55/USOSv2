@@ -50,7 +50,7 @@ wait --> zapisy : zapis awansowanego
 wait --> notif
 zapisy --> notif
 notif --> db : outbox
-worker --> wait : zamknięcie tury:\nwygaś listy
+worker --> wait : zamknięcie tury:\nwygaśnięcie listy
 worker --> db
 worker --> smtp
 katalog --> db
