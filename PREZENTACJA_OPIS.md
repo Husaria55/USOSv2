@@ -547,11 +547,13 @@ to robi kod i widok audytu.
 O:
 - **Kolumna „pozycja”:** przy każdej rezygnacji trzeba by przenumerować wszystkich za nią.
   To dużo zapisów i ryzyko błędu.
-- **`created_at` z domyślnym `now()`:** w PostgreSQL to czas **początku transakcji**, a nie
-  wstawienia. Transakcja, która zaczęła się wcześniej, ale czekała na blokadę, dostałaby
-  wcześniejszy czas niż ktoś, kto był przed nią na liście.
+- **`created_at`:** służy tylko do wyświetlania. Domyślne `now()` w PostgreSQL to czas
+  **początku transakcji**: transakcja, która zaczęła się wcześniej, ale czekała na blokadę,
+  dostałaby wcześniejszy czas niż ktoś przed nią na liście. Dlatego kolumna ma
+  `DEFAULT clock_timestamp()` (czas faktycznego wstawienia). Do kolejności i tak go nie używamy,
+  bo zegar może się cofnąć (korekta NTP) i dawać remisy.
 - **`id` z sekwencji:** jest nadawane w chwili `INSERT`, a ten dzieje się pod blokadą grupy,
-  więc kolejność `id` to kolejność dopisania.
+  więc w obrębie grupy `id` ściśle rośnie w kolejności dopisania.
 
 Pozycję do wyświetlenia liczymy jako liczbę wpisów WAITING z mniejszym `id` plus jeden.
 Dopytanie, „sekwencje mają dziury, czy to problem?”: nie, liczy się tylko porządek, a nie
@@ -659,8 +661,12 @@ trzeba pilnować przestrzeni numerów blokad doradczych.
 
 **P: Dlaczego najpierw student, potem grupa?**
 O: Stała kolejność blokad zapobiega zakleszczeniom. Gdyby jeden zapis blokował grupę, a potem
-studenta, a drugi odwrotnie, mogłyby czekać na siebie nawzajem. Wybraliśmy student → grupa, bo
-student jest znany od razu z żądania, a jego blokada jest „tańsza” (dotyczy tylko jego).
+studenta, a drugi odwrotnie, mogłyby czekać na siebie nawzajem. Każda stała kolejność by
+wystarczyła. Student → grupa wybraliśmy, bo dobrze się uogólnia: każda operacja studenta, obecna
+i planowana, dotyczy **jednego** studenta i **jednej lub kilku** grup. Przykłady to zamiana grupy
+(dwie grupy), limit ECTS albo zapis do kilku grup naraz. Reguła „najpierw student, potem grupy
+rosnąco po `id`” daje więc jeden globalny porządek. Jedynym wyjątkiem jest awans z listy, gdzie
+studenta poznajemy dopiero pod blokadą grupy, i tam działa `NOWAIT` (następne pytanie).
 
 **P: Ale awans z listy blokuje w odwrotnej kolejności. Czy to nie zakleszczenie?**
 O: Tak, i to właśnie znaleźliśmy. Wypis trzyma blokadę grupy, a awans potrzebuje blokady
@@ -676,7 +682,8 @@ Dopytanie, „a jeśli ponowienia nie skończą się sukcesem?”: limit kilku p
 odstępem, potem błąd „spróbuj ponownie” dla użytkownika. Konflikt trwa milisekundy, więc w
 praktyce druga próba przejdzie. To opis z `schemat.sql`, jeszcze nie kod.
 Dopytanie, „czy PostgreSQL sam nie wykryje zakleszczenia?”: wykryje, ale po
-`deadlock_timeout` (domyślnie 1 s) i przerwie losową z dwóch transakcji. `NOWAIT` daje
+`deadlock_timeout` (domyślnie 1 s) i przerwie jedną z nich: tę, która po tym czasie uruchomiła
+sprawdzenie, a nie koniecznie tę, którą chcielibyśmy. W naszym teście był to zapis B. `NOWAIT` daje
 natychmiastową, przewidywalną reakcję. Błąd 40P01 i tak obsługujemy ponowieniem, jako
 zabezpieczenie.
 
