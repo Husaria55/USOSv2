@@ -314,31 +314,35 @@ AND (mine.week_parity = 'ALL'
 
 \begin{frame}[fragile]{Scenariusz 1: 30 studentów, 10 miejsc}
   \begin{columns}[T]
-    \begin{column}{0.48\textwidth}
+    \begin{column}{0.53\textwidth}
       \small
-      \textbf{\bad{Wersja naiwna}}: odczyt licznika, potem osobny zapis
+      Transakcja zapisu (\texttt{READ COMMITTED}):
 \begin{lstlisting}
-SELECT enrolled_count, capacity ...
--- okno wyscigu
-INSERT INTO enrollment ...
-UPDATE section SET enrolled_count = :n+1
-\end{lstlisting}
-      \bad{30 zapisanych / 10 miejsc, licznik = 1}\\[3pt]
-      \footnotesize \texttt{CHECK (enrolled\_count <= capacity)} tego \emph{nie} wykrywa -- licznik jest zaniżony.
-      Wykrywa to widok \texttt{section\_invariant\_violations}.
-    \end{column}
-    \begin{column}{0.48\textwidth}
-      \small
-      \textbf{\good{Wersja bezpieczna}}: jedna atomowa operacja
-\begin{lstlisting}
+BEGIN;
+SELECT 1 FROM student
+ WHERE user_id = :s FOR UPDATE;
+SELECT ... FROM section
+ WHERE id = :g FOR UPDATE;
+-- tura, wymagania, kolizje
 UPDATE section
    SET enrolled_count = enrolled_count + 1
- WHERE id = :section
+ WHERE id = :g
    AND enrolled_count < capacity;
--- 0 wierszy => lista oczekujacych
+INSERT INTO enrollment ...
+COMMIT;
 \end{lstlisting}
-      \good{10 zapisanych, 20 na liście, niezmienniki OK}\\[3pt]
-      \footnotesize Wynik powtarzalny przy każdym uruchomieniu.
+      Wynik: 10 zapisanych, 20 na liście.
+    \end{column}
+    \begin{column}{0.43\textwidth}
+      \small
+      30 transakcji do jednej grupy:
+      \begin{itemize}
+        \item blokadę grupy ma jedna, reszta czeka,
+        \item każda następna widzi licznik po \texttt{COMMIT} poprzedniej,
+        \item jedenasta dostaje 0 wierszy z \texttt{UPDATE} i trafia na listę oczekujących.
+      \end{itemize}
+      Blokada studenta: jego dwa równoległe zapisy nie sprawdzą kolizji jednocześnie.\\[4pt]
+      \footnotesize Bez blokad prototyp zapisał 30 osób przy liczniku równym 1.
     \end{column}
   \end{columns}
 \end{frame}
@@ -362,7 +366,7 @@ UPDATE section
 
 \begin{frame}[fragile]{Blokady w PostgreSQL: zakleszczenie przy awansie}
   \begin{columns}[T]
-    \begin{column}{0.55\textwidth}
+    \begin{column}{0.52\textwidth}
       \centering
       \begin{tikzpicture}[
           node distance=6mm,
@@ -377,22 +381,22 @@ UPDATE section
         \draw[->, ok, thick] (stB) -- node[right, font=\scriptsize]{trzyma} (t2);
         \draw[->, bad, thick, dashed] (t1.south east) -- (stB.north west) node[pos=0.8, above right, font=\scriptsize]{czeka};
         \draw[->, bad, thick, dashed] (t2.south west) -- (sec.north east) node[pos=0.8, above left, font=\scriptsize]{czeka};
-      \end{tikzpicture}\\[4pt]
-      \footnotesize Sprawdzone na PostgreSQL 16 (dwie sesje):\\ \bad{\texttt{ERROR: deadlock detected}}
+      \end{tikzpicture}\\[6pt]
+      \raggedright\small
+      Zapis blokuje studenta, potem grupę. Awans: grupę, potem studenta B.\\[3pt]
+      Przy zwykłym \texttt{FOR UPDATE} PostgreSQL po \texttt{deadlock\_timeout} (1~s) przerywa jedną z transakcji błędem 40P01 (sprawdzone na PostgreSQL~16).
     \end{column}
-    \begin{column}{0.41\textwidth}
+    \begin{column}{0.44\textwidth}
       \small
-      Zapis: \textbf{student $\to$ grupa}.\\
-      Awans: \textbf{grupa $\to$ student B} -- odwrotnie.\\[4pt]
-      \textbf{Rozwiązanie:}
+      Awans blokuje B bez czekania:
 \begin{lstlisting}
 SELECT 1 FROM student
  WHERE user_id = :b
    FOR UPDATE NOWAIT;
 \end{lstlisting}
-      \footnotesize
-      Zajęty $\Rightarrow$ błąd 55P03 od razu, \texttt{ROLLBACK} i ponowienie całej transakcji.
-      B nie jest pomijany (nie traci kolejki). Tak samo obsługujemy 40P01 i 40001.
+      Zajęty B: od razu błąd 55P03, wypis się wycofuje i jest ponawiany.\\[4pt]
+      Awans zostaje w tej samej transakcji co zwolnienie miejsca, więc nikt spoza listy go nie zajmie, a B nie traci kolejki.\\[3pt]
+      \footnotesize 40P01 i 40001 obsługujemy tak samo.
     \end{column}
   \end{columns}
 \end{frame}

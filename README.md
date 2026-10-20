@@ -39,7 +39,7 @@ Temat 2, *System zapisu na zajęcia*:
 | `schemat.sql` | Schemat bazy dla PostgreSQL 16 (tabele, ograniczenia, funkcja wykrywania kolizji) |
 | `prototyp/prototyp_zapisow.py` | Działający prototyp najbardziej ryzykownych mechanizmów |
 | `mockup/mockup.html` / `.png` | Mock-up ekranu zapisów studenta |
-| `prezentacja/prezentacja.tex` / `.pdf` | Slajdy na prezentację (Beamer, XeLaTeX: `tectonic prezentacja.tex` albo `latexmk -xelatex`) |
+| `prezentacja/prezentacja.tex` / `.pdf` | Slajdy na prezentację (Beamer, XeLaTeX). Kompilacja: `prezentacja/build.sh` (sam pobiera tectonic do `.tools/`) |
 | `prezentacja/prezentacja_krotka.tex` / `.pdf` | Skrócona wersja slajdów (maks. 10 minut) |
 
 Pliki `.puml` to źródła w PlantUML, a `.png` to wersje gotowe do slajdów (instrukcja regeneracji
