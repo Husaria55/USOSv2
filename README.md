@@ -35,7 +35,7 @@ Temat 2, *System zapisu na zajęcia*:
 | `diagramy/architektura.puml` / `.png` | Diagram architektury (moduły i połączenia) |
 | `diagramy/przypadki_uzycia_student.puml` / `.png` | Przypadki użycia 1/2: student i zapisy |
 | `diagramy/przypadki_uzycia_administracja.puml` / `.png` | Przypadki użycia 2/2: dziekanat, prowadzący, zegar |
-| `diagramy/er.puml` / `.png` | Diagram ER bazy danych |
+| `diagramy/er.py` → `er.tex` / `.pdf` / `.png` | Diagram ER bazy danych (TikZ, generowany skryptem) |
 | `schemat.sql` | Schemat bazy dla PostgreSQL 16 (tabele, ograniczenia, funkcja wykrywania kolizji) |
 | `prototyp/prototyp_zapisow.py` | Działający prototyp najbardziej ryzykownych mechanizmów |
 | `mockup/mockup.html` / `.png` | Mock-up ekranu zapisów studenta |
