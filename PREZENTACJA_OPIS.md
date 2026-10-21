@@ -514,15 +514,19 @@ powinien być stały, bo odwołują się do niego klucze obce. Kody naturalne ma
 nadal są unikalne. Wyjątek: `completed_course` ma klucz złożony (student, kurs, semestr), bo to
 naturalna tożsamość wpisu i nic się do niego nie odwołuje.
 
-**P: Dlaczego `app_user` plus osobne `student` i `lecturer`?**
-O: To dziedziczenie w modelu tabela-na-podtyp. Wspólne dane (e-mail, hasło, imię, rola) są raz,
-a dane specyficzne (numer indeksu, kierunek, katedra) w tabelach podtypów. Klucz `user_id` jest
-jednocześnie główny i obcy. Klucze obce mogą wskazywać dokładnie tam, gdzie trzeba: zapis
-wskazuje na `student`, więc nie da się zapisać prowadzącego na zajęcia. Powiadomienie wskazuje
-na `app_user`, bo może trafić do każdego.
-Dopytanie, „co z osobą, która jest i doktorantem, i prowadzącym?”: model na to pozwala, bo
-ten sam `user_id` może być w obu tabelach. Pole `role` przechowuje jednak jedną rolę, więc do
-takich przypadków trzeba by je zamienić na tabelę ról. To znane uproszczenie.
+**P: Dlaczego jedna tabela `app_user`, a nie osobne `student` i `lecturer`?**
+O: Rola i tak jest w `app_user.role`, więc osobne tabele podtypów dawałyby niewiele: studenta
+opisują trzy kolumny (indeks, kierunek, semestr), prowadzącego dwie (tytuł, katedra). Trzymamy je
+w `app_user` jako kolumny dopuszczające NULL, a CHECK-i pilnują, że są wypełnione dokładnie dla
+swojej roli (np. student musi mieć indeks, administrator nie może go mieć). Mniej tabel i złączeń,
+jedno miejsce na konto.
+Koszt: klucz obcy `enrollment.student_id` → `app_user.id` nie sprawdza roli, więc sama baza nie
+zabroni zapisania prowadzącego na zajęcia. Pilnuje tego pierwszy krok transakcji zapisu:
+`SELECT 1 FROM app_user WHERE id = :s AND role = 'STUDENT' FOR UPDATE`, brak wiersza = odmowa.
+Gdyby trzeba to wymusić w bazie, wystarczy `UNIQUE (id, role)` i złożony klucz obcy
+`(student_id, 'STUDENT')`.
+Dopytanie, „co z osobą, która jest i doktorantem, i prowadzącym?”: pole `role` przechowuje jedną
+rolę, więc do takich przypadków trzeba by je zamienić na tabelę ról. To znane uproszczenie.
 
 **P: Dlaczego zapis i lista oczekujących to dwie tabele, a nie jedna ze statusem WAITING?**
 O: Mają inny cykl życia i inne reguły:

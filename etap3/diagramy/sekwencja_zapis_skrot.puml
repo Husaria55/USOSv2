@@ -1,0 +1,32 @@
+@startuml sekwencja_zapis_skrot
+title Zapis do grupy (UC2, UC5) – przebieg główny
+skinparam shadowing false
+skinparam defaultFontSize 15
+skinparam sequenceMessageAlign left
+autonumber
+
+actor Student
+participant "API" as api
+participant "EnrollmentService" as svc
+participant "domena" as dom
+database "PostgreSQL" as db
+
+Student -> api : POST /api/me/enrollments
+api -> api : limit na studenta, bramka\n(nadmiar: 429/503 + Retry-After)
+api -> svc : enroll() w transakcji
+svc -> db : 1. blokada studenta (FOR UPDATE)
+svc -> db : plan, tury kierunku, wymagania
+svc -> dom : check_student()
+alt odmowa
+  api --> Student : 409 „Kolizja w planie z: BD L05”
+end
+svc -> db : 2. blokada grupy (FOR UPDATE)
+svc -> dom : decide_seat()
+alt wolne miejsce
+  svc -> db : licznik +1, INSERT enrollment
+  svc --> Student : ENROLLED
+else brak miejsca
+  svc -> db : INSERT waitlist_entry
+  svc --> Student : WAITLISTED, miejsce N
+end
+@enduml

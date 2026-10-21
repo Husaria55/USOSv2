@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/api.ts","./src/components.tsx","./src/main.tsx","./src/pages/AdminCatalog.tsx","./src/pages/AdminData.tsx","./src/pages/AdminRounds.tsx","./src/pages/AdminStudents.tsx","./src/pages/Catalog.tsx","./src/pages/LecturerSections.tsx","./src/pages/Login.tsx","./src/pages/Plan.tsx","./src/pages/Waitlists.tsx"],"version":"5.9.3"}

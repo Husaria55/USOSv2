@@ -1,0 +1,65 @@
+@startuml architektura
+!pragma layout smetana
+title USOSv2 – architektura systemu (etap 3)
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam defaultFontSize 12
+
+actor "Student" as student
+actor "Prowadzący" as prow
+actor "Dziekanat" as admin
+actor "Zegar" as zegar
+
+node "Przeglądarka" {
+  [SPA React + TypeScript\n(katalog, plan, listy,\npanel dziekanatu)] as spa
+}
+
+node "nginx" {
+  [Statyka SPA\n(cache 1 rok dla /assets)] as static
+  [Reverse proxy /api\n(keep-alive do API)] as proxy
+}
+
+package "API – FastAPI, N procesów uvicorn (bezstanowe)" {
+  [Warstwa HTTP\napp/api: auth, student,\nlecturer, admin] as http
+  [Kontrola ruchu\napp/traffic.py:\nTTLCache, RateLimiter, Gate] as traffic
+  [Serwisy (transakcje)\napp/services:\nEnrollment, Catalog, Rounds,\nUsers, Records, Queries, Audit] as services
+  [Dostęp do danych\napp/services/loaders.py\n(asyncpg, blokady)] as loaders
+  [Domena (reguły biznesowe)\napp/domain: schedule,\nprerequisites, enrollment_rules,\nrounds – czyste funkcje] as domain
+}
+
+package "Worker (python -m app.worker)" {
+  [Harmonogram tur\nwygaszanie list\naudyt niezmienników] as wtasks
+  [Wysyłka outboxa\n(SKIP LOCKED)] as wmail
+}
+
+database "PostgreSQL 16\nograniczenia (CHECK, UNIQUE, FK),\nblokady wierszy, outbox" as db
+cloud "SMTP\n(dev: Mailpit)" as smtp
+
+student --> spa
+prow --> spa
+admin --> spa
+spa --> static : HTTPS
+spa --> proxy : REST/JSON + JWT
+proxy --> http
+http --> traffic : limit, bramka,\ncache katalogu
+http --> services
+services --> domain : decyzje
+services --> loaders
+loaders --> db : SQL (dane, blokady)
+zegar --> wtasks
+wtasks --> services
+wtasks --> db
+wmail --> db
+wmail --> smtp
+
+note right of domain
+  Reguły nie znają bazy:
+  dostają dane, zwracają decyzję.
+  Testowane jednostkowo.
+end note
+note bottom of db
+  Siatka bezpieczeństwa: nawet błąd
+  w kodzie nie przepełni grupy
+  (CHECK enrolled_count <= capacity).
+end note
+@enduml

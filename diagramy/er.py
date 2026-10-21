@@ -17,7 +17,7 @@ CH = 0.128       # szacowana szerokość znaku [cm]
 
 # Kolor linii = kolor tabeli docelowej (tej z PK).
 COLORS = {
-    "app_user": "5B6B7F", "student": "1F5EFF", "lecturer": "0B8A7A",
+    "app_user": "5B6B7F",
     "section": "D9480F", "course": "2B8A3E", "term": "7048E8",
     "enrollment": "C2255C", "room": "8D6E63",
 }
@@ -26,14 +26,13 @@ COLORS = {
 T = {
     "app_user": [("id", "bigserial", "P"), ("email", "varchar(255)", "U"),
                  ("password_hash", "varchar(255)", ""), ("full_name", "varchar(200)", ""),
-                 ("role", "varchar(16)", ""), ("created_at", "timestamptz", "")],
+                 ("role", "varchar(16)", ""), ("created_at", "timestamptz", ""),
+                 ("index_no", "varchar(10)", "UN"), ("program", "varchar(100)", "N"),
+                 ("semester", "smallint", "N"), ("title", "varchar(50)", "N"),
+                 ("department", "varchar(100)", "N")],
     "notification": [("id", "bigserial", "P"), ("user_id", "bigint", "F"),
                      ("type", "varchar(32)", ""), ("payload", "jsonb", ""),
                      ("created_at", "timestamptz", ""), ("sent_at", "timestamptz", "N")],
-    "lecturer": [("user_id", "bigint", "PF"), ("title", "varchar(50)", "N"),
-                 ("department", "varchar(100)", "")],
-    "student": [("user_id", "bigint", "PF"), ("index_no", "varchar(10)", "U"),
-                ("program", "varchar(100)", ""), ("semester", "smallint", "")],
     "section_lecturer": [("section_id", "bigint", "PF"), ("lecturer_id", "bigint", "PF")],
     "enrollment": [("id", "bigserial", "P"), ("student_id", "bigint", "F"),
                    ("section_id", "bigint", "F"), ("status", "varchar(16)", ""),
@@ -70,36 +69,33 @@ T = {
 # Kolumny układu: lista (tabela, przesunięcie w dół przed tabelą [cm]).
 COLS = [
     [("app_user", 0.9), ("notification", 0.9)],
-    [("lecturer", 0.0), ("student", 2.2)],
     [("section_lecturer", 0.0), ("enrollment", 0.0), ("waitlist_entry", 0.0), ("completed_course", 0.0)],
     [("section", 1.2), ("term", 0.6), ("course", 0.6)],
     [("meeting", 0.6), ("room", 0.0), ("enrollment_round", 0.0), ("course_prerequisite", 0.0)],
 ]
 
 # Relacje: (tabela.kolumna_FK, tabela.kolumna_PK, odstęp, krotność FK, krotność PK)
-# odstęp k = przestrzeń na lewo od kolumny układu k (0 = lewy margines, 5 = prawy).
+# odstęp k = przestrzeń na lewo od kolumny układu k (0 = lewy margines, 4 = prawy).
 # krotność: "many0" (0..n), "many1" (1..n), "zero1" (0..1), "one" (dokładnie 1)
 REL = [
     ("notification.user_id", "app_user.id", 0, "many0", "one"),
-    ("lecturer.user_id", "app_user.id", 1, "zero1", "one"),
-    ("student.user_id", "app_user.id", 1, "zero1", "one"),
-    ("section_lecturer.lecturer_id", "lecturer.user_id", 2, "many0", "one"),
-    ("enrollment.student_id", "student.user_id", 2, "many0", "one"),
-    ("waitlist_entry.student_id", "student.user_id", 2, "many0", "one"),
-    ("completed_course.student_id", "student.user_id", 2, "many0", "one"),
-    ("waitlist_entry.enrollment_id", "enrollment.id", 2, "zero1", "zero1"),
-    ("section_lecturer.section_id", "section.id", 3, "many0", "one"),
-    ("enrollment.section_id", "section.id", 3, "many0", "one"),
-    ("waitlist_entry.section_id", "section.id", 3, "many0", "one"),
-    ("completed_course.course_id", "course.id", 3, "many0", "one"),
-    ("completed_course.term_id", "term.id", 3, "many0", "one"),
-    ("section.course_id", "course.id", 4, "many0", "one"),
-    ("section.term_id", "term.id", 4, "many0", "one"),
-    ("meeting.section_id", "section.id", 4, "many1", "one"),
-    ("enrollment_round.term_id", "term.id", 4, "many0", "one"),
-    ("course_prerequisite.course_id", "course.id", 4, "many0", "one"),
-    ("course_prerequisite.required_course_id", "course.id", 4, "many0", "one"),
-    ("meeting.room_id", "room.id", 5, "many0", "zero1"),
+    ("section_lecturer.lecturer_id", "app_user.id", 1, "many0", "one"),
+    ("enrollment.student_id", "app_user.id", 1, "many0", "one"),
+    ("waitlist_entry.student_id", "app_user.id", 1, "many0", "one"),
+    ("completed_course.student_id", "app_user.id", 1, "many0", "one"),
+    ("waitlist_entry.enrollment_id", "enrollment.id", 1, "zero1", "zero1"),
+    ("section_lecturer.section_id", "section.id", 2, "many0", "one"),
+    ("enrollment.section_id", "section.id", 2, "many0", "one"),
+    ("waitlist_entry.section_id", "section.id", 2, "many0", "one"),
+    ("completed_course.course_id", "course.id", 2, "many0", "one"),
+    ("completed_course.term_id", "term.id", 2, "many0", "one"),
+    ("section.course_id", "course.id", 3, "many0", "one"),
+    ("section.term_id", "term.id", 3, "many0", "one"),
+    ("meeting.section_id", "section.id", 3, "many1", "one"),
+    ("enrollment_round.term_id", "term.id", 3, "many0", "one"),
+    ("course_prerequisite.course_id", "course.id", 3, "many0", "one"),
+    ("course_prerequisite.required_course_id", "course.id", 3, "many0", "one"),
+    ("meeting.room_id", "room.id", 4, "many0", "zero1"),
 ]
 
 
@@ -259,9 +255,9 @@ def main():
         L.extend(s + "\n" for s in marker(x1, y1, 1 if c > x1 else -1, fkind, style))
         L.extend(s + "\n" for s in marker(x2, y2, 1 if c > x2 else -1, pkind, style))
 
-    # legenda pod tabelami w drugiej kolumnie
-    lx = colx[1]
-    ly = min(pos[t][1] - HEAD - ROW * len(T[t]) for t, _ in COLS[1]) - 0.9
+    # legenda pod tabelami w pierwszej kolumnie
+    lx = colx[0]
+    ly = min(pos[t][1] - HEAD - ROW * len(T[t]) for t, _ in COLS[0]) - 0.9
     legend = [
         r"\textcolor{pk}{\bfseries PK} klucz główny",
         r"\bfseries FK\mdseries{} klucz obcy (kolor = tabela docelowa)",

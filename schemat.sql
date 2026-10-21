@@ -1,25 +1,24 @@
 -- System zapisów na zajęcia: schemat bazy danych (PostgreSQL 16)
 
+-- Jedna tabela użytkowników. Dane studenta i prowadzącego to kolumny
+-- wypełniane tylko dla danej roli (pilnują tego CHECK-i poniżej).
 CREATE TABLE app_user (
     id            BIGSERIAL    PRIMARY KEY,
     email         VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     full_name     VARCHAR(200) NOT NULL,
     role          VARCHAR(16)  NOT NULL CHECK (role IN ('STUDENT', 'LECTURER', 'ADMIN')),
-    created_at    TIMESTAMPTZ  NOT NULL DEFAULT now()
-);
-
-CREATE TABLE student (
-    user_id  BIGINT       PRIMARY KEY REFERENCES app_user(id),
-    index_no VARCHAR(10)  NOT NULL UNIQUE,
-    program  VARCHAR(100) NOT NULL,
-    semester SMALLINT     NOT NULL CHECK (semester BETWEEN 1 AND 12)
-);
-
-CREATE TABLE lecturer (
-    user_id    BIGINT       PRIMARY KEY REFERENCES app_user(id),
-    title      VARCHAR(50),
-    department VARCHAR(100) NOT NULL
+    created_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    -- STUDENT
+    index_no      VARCHAR(10)  UNIQUE,
+    program       VARCHAR(100),
+    semester      SMALLINT     CHECK (semester BETWEEN 1 AND 12),
+    -- LECTURER
+    title         VARCHAR(50),
+    department    VARCHAR(100),
+    CHECK (num_nonnulls(index_no, program, semester) = CASE WHEN role = 'STUDENT' THEN 3 ELSE 0 END),
+    CHECK ((role = 'LECTURER') = (department IS NOT NULL)),
+    CHECK (title IS NULL OR role = 'LECTURER')
 );
 
 -- Katalog --------------------------------------------------------------------
@@ -118,9 +117,10 @@ CREATE TABLE section (
     CHECK (enrolled_count <= capacity)
 );
 
+-- Klucz obcy nie sprawdza roli: że lecturer_id to prowadzący, pilnuje CatalogService.
 CREATE TABLE section_lecturer (
     section_id  BIGINT NOT NULL REFERENCES section(id) ON DELETE CASCADE,
-    lecturer_id BIGINT NOT NULL REFERENCES lecturer(user_id),
+    lecturer_id BIGINT NOT NULL REFERENCES app_user(id),
     PRIMARY KEY (section_id, lecturer_id)
 );
 
@@ -143,7 +143,7 @@ CREATE INDEX meeting_room    ON meeting (room_id, weekday);
 
 -- passed wyliczane z oceny, więc nie da się zapisać "2.0 i zaliczone".
 CREATE TABLE completed_course (
-    student_id BIGINT       NOT NULL REFERENCES student(user_id),
+    student_id BIGINT       NOT NULL REFERENCES app_user(id),
     course_id  BIGINT       NOT NULL REFERENCES course(id),
     term_id    BIGINT       NOT NULL REFERENCES term(id),
     grade      NUMERIC(2,1) NOT NULL CHECK (grade IN (2.0, 3.0, 3.5, 4.0, 4.5, 5.0)),
@@ -153,9 +153,13 @@ CREATE TABLE completed_course (
 
 -- Zapisy ---------------------------------------------------------------------
 
+-- student_id (tu i w completed_course) wskazuje na app_user, więc klucz obcy
+-- nie sprawdza roli. Przy zapisie robi to blokada studenta na początku
+-- transakcji (WHERE role = 'STUDENT'): brak wiersza = odmowa.
+
 CREATE TABLE enrollment (
     id          BIGSERIAL   PRIMARY KEY,
-    student_id  BIGINT      NOT NULL REFERENCES student(user_id),
+    student_id  BIGINT      NOT NULL REFERENCES app_user(id),
     section_id  BIGINT      NOT NULL REFERENCES section(id),
     status      VARCHAR(16) NOT NULL CHECK (status IN ('ENROLLED', 'DROPPED')),
     source      VARCHAR(16) NOT NULL CHECK (source IN ('DIRECT', 'WAITLIST', 'ADMIN')),
@@ -174,7 +178,7 @@ CREATE INDEX enrollment_student ON enrollment (student_id) WHERE status = 'ENROL
 -- grupy, więc zgodne z kolejnością zapisów). created_at służy tylko do wyświetlania.
 CREATE TABLE waitlist_entry (
     id            BIGSERIAL    PRIMARY KEY,
-    student_id    BIGINT       NOT NULL REFERENCES student(user_id),
+    student_id    BIGINT       NOT NULL REFERENCES app_user(id),
     section_id    BIGINT       NOT NULL REFERENCES section(id),
     status        VARCHAR(16)  NOT NULL DEFAULT 'WAITING'
                   CHECK (status IN ('WAITING', 'PROMOTED', 'SKIPPED', 'CANCELLED', 'EXPIRED')),
@@ -264,7 +268,8 @@ CREATE VIEW section_invariant_violations AS
 -- Przykład: zapis do grupy (fragment EnrollmentService).
 --
 --   BEGIN;
---   SELECT 1 FROM student WHERE user_id = :student FOR UPDATE;   -- 1. blokada studenta
+--   SELECT 1 FROM app_user WHERE id = :student AND role = 'STUDENT'
+--      FOR UPDATE;                                               -- 1. blokada studenta
 --   SELECT ... FROM section WHERE id = :section FOR UPDATE;      -- 2. blokada grupy
 --   -- sprawdzenia (każde z odmową z podaniem przyczyny):
 --   --   tura semestru grupy ma status OPEN,
@@ -289,7 +294,7 @@ CREATE VIEW section_invariant_violations AS
 -- sprawdzania). To odwrotna kolejność niż przy zapisie (student -> grupa),
 -- więc czekanie groziłoby zakleszczeniem z zapisem B do tej samej grupy:
 --
---   SELECT 1 FROM student WHERE user_id = :b FOR UPDATE NOWAIT;
+--   SELECT 1 FROM app_user WHERE id = :b AND role = 'STUDENT' FOR UPDATE NOWAIT;
 --
 -- Jeśli B jest w tej chwili zablokowany (SQLSTATE 55P03), cała transakcja jest
 -- wycofywana i ponawiana po chwili - nie pomijamy B, bo straciłby kolejkę.

@@ -1,0 +1,42 @@
+@startuml sekwencja_harmonogram
+title UC12 + UC4 – dodanie terminu grupy z wykrywaniem kolizji sali i prowadzących
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+autonumber
+
+actor Dziekanat
+participant "API admin\nadd_meeting" as api
+participant "CatalogService\nadd_meeting()" as svc
+participant "domain.schedule" as dom
+database "PostgreSQL" as db
+
+Dziekanat -> api : POST /api/admin/sections/{id}/meetings\n{weekday, start, end, parity, room_id}
+api -> api : walidacja Pydantic (weekday 1–7, parity)\nrola ADMIN
+api -> svc : run_transaction(add_meeting(...))
+alt start >= end
+  api --> Dziekanat : 409 BAD_TIME
+end
+svc -> db : SELECT section; SELECT lecturer_id FROM section_lecturer
+svc -> db : pg_advisory_xact_lock(sala), pg_advisory_xact_lock(prowadzący)…\n(posortowane – stała kolejność, bez zakleszczeń)
+note right of db : dwóch pracowników nie doda\nnaraz kolidujących terminów
+opt podana sala
+  svc -> db : SELECT seats FROM room
+  alt section.capacity > seats
+    api --> Dziekanat : 409 ROOM_TOO_SMALL
+  end
+  svc -> db : terminy wszystkich grup w tej sali w semestrze
+  svc -> dom : conflicting_sections(plan_sali, [nowy termin])
+  alt kolizja
+    api --> Dziekanat : 409 ROOM_BUSY {details: grupy}
+  end
+end
+svc -> db : terminy grup tych samych prowadzących w semestrze
+svc -> dom : conflicting_sections(plan_prowadzących, [nowy termin])
+alt kolizja
+  api --> Dziekanat : 409 LECTURER_BUSY {details: grupy}
+end
+svc -> db : INSERT INTO meeting ... RETURNING id
+svc -> db : COMMIT
+api -> api : catalog_cache.clear(), loaders.forget_targets()
+api --> Dziekanat : 200 {id}
+@enduml

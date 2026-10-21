@@ -1,0 +1,40 @@
+@startuml sekwencja_logowanie
+title UC0 – uwierzytelnienie i autoryzacja żądań
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+autonumber
+
+actor Użytkownik
+participant "SPA" as spa
+participant "API auth.login" as api
+participant "UserService" as us
+participant "security" as sec
+database "PostgreSQL" as db
+
+Użytkownik -> spa : e-mail + hasło
+spa -> api : POST /api/auth/login
+api -> us : login(email, password)
+us -> db : SELECT * FROM app_user WHERE lower(email) = lower($1)
+us -> sec : verify_password(hasło, hash)\n(w wątku – bcrypt nie blokuje pętli zdarzeń)
+note right : gdy konta nie ma, porównanie z hashem-wydmuszką:\nczas odpowiedzi nie zdradza, czy e-mail istnieje
+alt błędne dane
+  api --> spa : 401 BAD_CREDENTIALS
+else poprawne
+  us -> sec : create_token(user_id, role) – JWT HS256, ważny 12 h
+  api --> spa : 200 {token, user}
+  spa -> spa : token w localStorage
+end
+== Kolejne żądania ==
+spa -> api : GET/POST /api/... Authorization: Bearer JWT
+api -> sec : decode_token() – bez zapytania do bazy
+api -> api : role("STUDENT" | "LECTURER" | "ADMIN")
+alt brak / wygasły token
+  api --> spa : 401 -> SPA wylogowuje
+else zła rola
+  api --> spa : 403 FORBIDDEN
+end
+note over spa, api
+  Token ważny kilka godzin: studenci logują się przed turą,
+  więc bcrypt nie obciąża API w pierwszej minucie zapisów.
+end note
+@enduml

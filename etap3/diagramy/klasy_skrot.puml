@@ -1,0 +1,58 @@
+@startuml klasy_skrot
+!pragma layout smetana
+title Kluczowe klasy: reguła zapisu
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam defaultFontSize 14
+hide empty members
+
+class EnrollmentService <<service>> {
+  + enroll(student_id: int, section_id: int, mode: Mode, actor_id: int?): EnrollResult
+  + drop(student_id: int, section_id: int, mode: Mode, actor_id: int?): list[PromotionEvent]
+  + promote(section: LockedSection, target: TargetSection, term_id: int): list[PromotionEvent]
+}
+class enrollment_rules <<domena>> {
+  + check_student(student: StudentState, target: TargetSection, mode: Mode): list[Refusal]
+  + decide_seat(seat: SeatState, mode: Mode): Outcome | Refusal
+}
+class StudentState {
+  + round_open: bool
+  + plan: tuple[PlanEntry]
+  + passed_course_ids: frozenset[int]
+  + waiting_section_ids: frozenset[int]
+}
+class TargetSection {
+  + course_id: int
+  + kind: str
+  + slots: tuple[Slot]
+  + prerequisites: Mapping[int, str]
+}
+class SeatState {
+  + capacity: int
+  + enrolled_count: int
+  + waiting_count: int
+  + waitlist_limit: int
+}
+class Refusal {
+  + code: str
+  + message: str
+}
+enum Mode {
+  DIRECT
+  WAITLIST
+  ADMIN
+}
+enum Outcome {
+  ENROLL
+  WAITLIST
+  ENROLL_OVER_CAPACITY
+}
+
+EnrollmentService --> enrollment_rules : decyzja
+enrollment_rules ..> StudentState
+enrollment_rules ..> TargetSection
+enrollment_rules ..> SeatState
+enrollment_rules ..> Refusal
+enrollment_rules ..> Outcome
+enrollment_rules ..> Mode
+@enduml

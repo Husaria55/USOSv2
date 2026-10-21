@@ -1,0 +1,78 @@
+@startuml sekwencja_zapis
+title UC2 / UC3 / UC4 / UC5 / UC22 – zapis do grupy (POST /api/me/enrollments)
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+autonumber
+
+actor Student
+participant "SPA" as spa
+participant "API\nstudent.enroll" as api
+participant "RateLimiter\n+ Gate" as traffic
+participant "db.run_transaction" as tx
+participant "EnrollmentService\nenroll()" as svc
+participant "loaders" as ld
+participant "domain\nenrollment_rules" as dom
+database "PostgreSQL" as db
+
+Student -> spa : „Zapisz” przy grupie
+spa -> api : POST {section_id}\nAuthorization: Bearer JWT
+api -> api : current_user(): dekoduj JWT,\nrola == STUDENT (inaczej 403)
+api -> traffic : rate_limiter.check(user_id)
+alt przekroczony limit operacji na minutę
+  traffic --> spa : 429 RATE_LIMITED, Retry-After
+end
+api -> traffic : write_gate.slot()
+alt brak wolnego slotu w ciągu 2 s
+  traffic -> traffic : refund(user_id)
+  traffic --> spa : 503 OVERLOADED, Retry-After
+  note right of spa : SPA ponawia sama\n(Retry-After × losowo 1–2)
+end
+api -> tx : run_transaction(enroll)
+tx -> db : BEGIN
+tx -> svc : enroll(session, student_id, section_id, mode=DIRECT)
+svc -> ld : lock_student(student_id)
+ld -> db : SELECT id, program_id FROM app_user\nWHERE id=$1 AND role='STUDENT' FOR UPDATE
+note right of db : 1. blokada studenta\n(stały plan na czas sprawdzania)
+svc -> ld : load_target(section_id)
+ld --> svc : TargetSection (kurs, typ, terminy, wymagania)\n– z cache procesu (10 s) albo 3 SELECT-y
+svc -> ld : student_state(student, term_id, need_passed)
+ld -> db : otwarte tury semestru + kierunki,\nwpisy WAITING, plan (grupy + terminy),\nzaliczenia (tylko gdy kurs ma wymagania)
+ld --> svc : StudentState, [WaitingEntry]
+svc -> dom : check_student(state, target, DIRECT)
+dom --> svc : [Refusal] (ROUND_CLOSED, ALREADY_ENROLLED,\nALREADY_WAITING, SAME_KIND,\nPREREQUISITES, CONFLICT)
+alt są odmowy
+  svc --> tx : Conflict(code, message)
+  tx -> db : ROLLBACK
+  api --> spa : 409 {code, message, details}\nnp. „Kolizja w planie z: BD L05.”
+else reguły spełnione
+  svc -> ld : lock_section(section_id)
+  ld -> db : SELECT capacity, enrolled_count, waitlist_limit\nFROM section WHERE id=$1 FOR UPDATE
+  note right of db : 2. blokada grupy – trzymana\nkrótko (tylko poniższe kroki)
+  opt grupa pełna
+    svc -> ld : waiting_count(section_id)
+  end
+  svc -> dom : decide_seat(SeatState, DIRECT)
+  alt ENROLL
+    svc -> db : UPDATE section SET enrolled_count = enrolled_count + 1
+    svc -> db : INSERT INTO enrollment (..., source='DIRECT', created_by)
+    opt czekał na inne grupy tego przedmiotu i typu
+      svc -> db : UPDATE waitlist_entry SET status='CANCELLED'
+      svc -> db : INSERT INTO notification (CANCELLED)
+    end
+    tx -> db : COMMIT
+    api --> spa : 200 {status: ENROLLED, cancelled_waitlists}
+  else WAITLIST
+    svc -> db : INSERT INTO waitlist_entry (status WAITING)
+    tx -> db : COMMIT
+    api --> spa : 200 {status: WAITLISTED, position}
+  else WAITLIST_FULL
+    tx -> db : ROLLBACK
+    api --> spa : 409 WAITLIST_FULL
+  end
+end
+note over tx, db
+  Błędy 40P01 (deadlock) i 40001: ROLLBACK, odczekanie
+  5–20 ms × 2^próba i ponowienie całej funkcji (maks. 5 razy).
+end note
+spa -> api : GET status grup kursu (UC19), plan (UC8)
+@enduml

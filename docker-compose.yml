@@ -1,0 +1,60 @@
+# Środowisko: baza, migracje, API, worker, frontend (nginx) i Mailpit (SMTP + podgląd poczty).
+#   docker compose up --build          -> http://localhost:8080  (poczta: http://localhost:8025)
+#   docker compose run --rm api python -m app.seed   -> dane przykładowe
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: usos
+      POSTGRES_PASSWORD: usos
+      POSTGRES_DB: usos
+    command: >
+      postgres -c max_connections=200 -c shared_buffers=512MB
+               -c synchronous_commit=on -c deadlock_timeout=1s
+    ports: ["127.0.0.1:5433:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U usos"]
+      interval: 2s
+      retries: 30
+
+  migrate:
+    build: ./backend
+    command: alembic upgrade head
+    environment: &env
+      USOS_DATABASE_URL: postgresql+asyncpg://usos:usos@db:5432/usos
+      USOS_JWT_SECRET: ${USOS_JWT_SECRET:-change-me-in-production-0123456789abcdef}
+      USOS_SMTP_HOST: mailpit
+      USOS_SMTP_PORT: "1025"
+    depends_on:
+      db: { condition: service_healthy }
+
+  api:
+    build: ./backend
+    environment: *env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 5s
+      retries: 20
+
+  worker:
+    build: ./backend
+    command: python -m app.worker
+    environment: *env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  web:
+    build: ./frontend
+    ports: ["127.0.0.1:8080:80"]
+    depends_on:
+      api: { condition: service_healthy }
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports: ["127.0.0.1:8025:8025"]
+
+volumes:
+  pgdata:

@@ -1,0 +1,42 @@
+@startuml sekwencja_wymagania_import
+title UC11 + UC27 – wymaganie wstępne bez cykli;  UC15 – import ocen
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+autonumber
+
+actor Dziekanat
+participant "API admin" as api
+participant "CatalogService" as cat
+participant "StudentRecordsService" as rec
+participant "domain.prerequisites" as dom
+database "PostgreSQL" as db
+
+== Dodanie wymagania (POST /api/admin/courses/{id}/prerequisites) ==
+Dziekanat -> api : {required_course_id}
+api -> cat : add_prerequisite(course_id, required_id)
+cat -> db : pg_advisory_xact_lock(1, 0)
+note right of db : zmiany wymagań są serializowane –\ndwa równoległe A->B i B->A nie przejdą
+cat -> db : SELECT course_id, required_course_id FROM course_prerequisite
+cat -> dom : creates_cycle(graf, course_id, required_id)
+alt cykl (kurs pośrednio wymagałby sam siebie)
+  api --> Dziekanat : 409 PREREQUISITE_CYCLE
+else brak cyklu
+  cat -> db : INSERT INTO course_prerequisite
+  api --> Dziekanat : 200
+end
+
+== Import ocen (POST /api/admin/grades/import) ==
+Dziekanat -> api : {csv: "index_no,course_code,term_code,grade ..."}
+api -> rec : import_grades(csv)
+rec -> rec : csv.DictReader – wiersze
+rec -> db : 3 zapytania: indeksy -> id studentów,\nkody kursów -> id, kody semestrów -> id
+loop każdy wiersz
+  rec -> rec : walidacja: znany indeks, kurs, semestr;\nocena ∈ {2.0, 3.0, 3.5, 4.0, 4.5, 5.0}
+  alt błąd
+    rec -> rec : errors += "wiersz N: ..."
+  end
+end
+rec -> db : INSERT INTO completed_course ... ON CONFLICT (student, kurs, semestr)\nDO UPDATE SET grade (poprawka oceny)
+note right of db : passed = GENERATED (grade >= 3.0)
+api --> Dziekanat : 200 {imported, errors[]}
+@enduml

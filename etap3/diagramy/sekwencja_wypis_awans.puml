@@ -1,0 +1,73 @@
+@startuml sekwencja_wypis_awans
+title UC6 + UC9 – wypis z grupy i awans z listy oczekujących (DELETE /api/me/enrollments/{id})
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+autonumber
+
+actor "Student A" as A
+participant "API" as api
+participant "db.run_transaction" as tx
+participant "EnrollmentService" as svc
+participant "loaders" as ld
+participant "domain" as dom
+database "PostgreSQL" as db
+participant "Worker" as w
+
+A -> api : DELETE /api/me/enrollments/{section_id}
+api -> tx : run_transaction(drop) (w write_slot)
+tx -> svc : drop(session, A, section_id, mode=DIRECT)
+svc -> ld : lock_student(A)
+ld -> db : SELECT ... FROM app_user ... FOR UPDATE
+svc -> ld : term_rounds(term_id, only_open=True)
+svc -> dom : student_can_enroll(rounds, program_id)
+alt tura kierunku zamknięta
+  api --> A : 409 ROUND_CLOSED
+end
+svc -> ld : lock_section(section_id)
+ld -> db : SELECT ... FROM section ... FOR UPDATE
+svc -> db : UPDATE enrollment SET status='DROPPED', dropped_at, dropped_by\nWHERE ... AND status='ENROLLED' RETURNING id
+alt brak aktywnego zapisu
+  api --> A : 409 NOT_ENROLLED
+end
+svc -> db : UPDATE section SET enrolled_count = enrolled_count - 1
+
+group promote(section, target, term_id) – UC9
+  loop dopóki enrolled_count < capacity
+    svc -> db : SELECT id, student_id FROM waitlist_entry\nWHERE section_id=$1 AND status='WAITING' ORDER BY id LIMIT 1
+    alt lista pusta
+      svc -> svc : koniec pętli
+    end
+    svc -> ld : lock_student(B, nowait=True)
+    ld -> db : SELECT ... FOR UPDATE NOWAIT
+    alt B zablokowany (np. właśnie się zapisuje) – SQLSTATE 55P03
+      db --> tx : LockNotAvailable
+      tx -> db : ROLLBACK (wypis też się cofa)
+      tx -> tx : odczekaj 5–20 ms × 2^próba
+      tx -> svc : ponów całe drop() – B nie traci kolejki
+    end
+    svc -> ld : student_state(B, term_id)
+    svc -> dom : check_student(state_B, target, WAITLIST)
+    alt B nie spełnia warunków (kolizja, wymagania, ma już grupę tego typu)
+      svc -> db : UPDATE waitlist_entry SET status='SKIPPED', skip_reason
+      svc -> db : INSERT INTO notification (SKIPPED, powód)
+    else spełnia
+      svc -> db : INSERT INTO enrollment (source='WAITLIST')
+      svc -> db : UPDATE waitlist_entry SET status='PROMOTED', enrollment_id
+      svc -> db : UPDATE section SET enrolled_count = enrolled_count + 1
+      svc -> db : wpisy B w innych grupach tego typu -> CANCELLED
+      svc -> db : INSERT INTO notification (PROMOTED)
+    end
+  end
+end
+tx -> db : COMMIT
+api --> A : 200 {status: DROPPED}
+note over svc, db
+  Zwolnienie miejsca i awans w jednej transakcji: nikt spoza listy
+  nie zajmie miejsca w międzyczasie. Kolejność blokad odwrócona
+  (grupa -> student B), dlatego NOWAIT zamiast czekania (bez zakleszczeń).
+end note
+... kilka sekund później ...
+w -> db : send_outbox(): SELECT ... FROM notification\nWHERE sent_at IS NULL FOR UPDATE SKIP LOCKED LIMIT 100
+w -> w : SMTP: e-mail do B
+w -> db : UPDATE notification SET sent_at = now()
+@enduml

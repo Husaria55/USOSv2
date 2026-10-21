@@ -31,9 +31,7 @@ Licznik to kolumna `section.enrolled_count`: liczba studentów aktualnie zapisan
 ### Użytkownicy
 | Tabela | Znaczenie | Co przechowuje |
 |--------|-----------|----------------|
-| `app_user` | Konto w systemie | e-mail (unikalny), hash hasła, imię i nazwisko, rola (`STUDENT` / `LECTURER` / `ADMIN`), data utworzenia |
-| `student` | Dane studenta (rozszerza `app_user`, klucz `user_id`) | numer indeksu (unikalny), program (kierunek), semestr (1-12) |
-| `lecturer` | Dane wykładowcy (rozszerza `app_user`) | tytuł, katedra/jednostka |
+| `app_user` | Konto w systemie (jedna tabela dla wszystkich ról) | e-mail (unikalny), hash hasła, imię i nazwisko, rola (`STUDENT` / `LECTURER` / `ADMIN`), data utworzenia. Dla studenta: numer indeksu (unikalny), program (kierunek), semestr (1-12). Dla wykładowcy: tytuł, katedra/jednostka. CHECK-i pilnują, że kolumny danej roli są wypełnione tylko dla niej |
 
 ### Katalog
 | Tabela | Znaczenie | Co przechowuje |
@@ -67,38 +65,37 @@ Licznik to kolumna `section.enrolled_count`: liczba studentów aktualnie zapisan
 
 Relacje wynikają z kluczy obcych w `schemat.sql` (diagram: `diagramy/er.pdf`, źródło `diagramy/er.py`).
 
-### Użytkownicy (dziedziczenie 1:1)
-- `student.user_id` → `app_user.id` (klucz główny i obcy jednocześnie)
-- `lecturer.user_id` → `app_user.id` (jak wyżej)
+### Użytkownicy
 - `notification.user_id` → `app_user.id` (użytkownik ma wiele powiadomień)
+- Wszystkie odwołania do studenta i wykładowcy (`student_id`, `lecturer_id`) wskazują na `app_user.id`. Klucz obcy nie sprawdza roli: przy zapisie robi to blokada `SELECT ... FROM app_user WHERE id = :s AND role = 'STUDENT' FOR UPDATE`, a przy przypisaniu prowadzącego `CatalogService`.
 
 ### Katalog
 - `course_prerequisite.course_id` → `course.id` oraz `course_prerequisite.required_course_id` → `course.id`: relacja wiele do wielu kursu z samym sobą (kurs wymaga innych kursów).
 - `enrollment_round.term_id` → `term.id` (semestr ma wiele tur).
 - `section.course_id` → `course.id` (kurs ma wiele grup).
 - `section.term_id` → `term.id` (grupa należy do semestru).
-- `section_lecturer` → `section.id` i `lecturer.user_id`: tabela łącząca, relacja wiele do wielu (grupa ma wielu wykładowców, wykładowca prowadzi wiele grup).
+- `section_lecturer` → `section.id` i `app_user.id` (wykładowca): tabela łącząca, relacja wiele do wielu (grupa ma wielu wykładowców, wykładowca prowadzi wiele grup).
 - `meeting.section_id` → `section.id` (grupa ma wiele terminów).
 - `meeting.room_id` → `room.id` (termin odbywa się w sali). Sala jest przypisana do terminu, nie do grupy.
 
 ### Historia studiów
-- `completed_course.student_id` → `student.user_id`
+- `completed_course.student_id` → `app_user.id`
 - `completed_course.course_id` → `course.id`
 - `completed_course.term_id` → `term.id`
 
 Student ma wiele zaliczeń (klucz główny: student + kurs + semestr).
 
 ### Zapisy
-- `enrollment.student_id` → `student.user_id` oraz `enrollment.section_id` → `section.id`: relacja wiele do wielu student-grupa, z historią (status, źródło, daty).
-- `waitlist_entry.student_id` → `student.user_id` oraz `waitlist_entry.section_id` → `section.id`: jak wyżej, ale dla listy oczekujących.
+- `enrollment.student_id` → `app_user.id` oraz `enrollment.section_id` → `section.id`: relacja wiele do wielu student-grupa, z historią (status, źródło, daty).
+- `waitlist_entry.student_id` → `app_user.id` oraz `waitlist_entry.section_id` → `section.id`: jak wyżej, ale dla listy oczekujących.
 - `waitlist_entry.enrollment_id` → `enrollment.id` (unikalne, tylko dla statusu `PROMOTED`): łączy wpis na liście z zapisem utworzonym przy awansie.
 
 ### Skrót
 ```
-app_user ─┬─ student ─┬─ enrollment ───── section ─┬─ course ─ course_prerequisite (samopowiązanie)
-          │           ├─ waitlist_entry ─ section  ├─ term ─ enrollment_round
-          │           └─ completed_course          ├─ meeting ─ room
-          ├─ lecturer ─ section_lecturer ─ section └─ section_lecturer
+app_user ─┬─ enrollment ─────── section ─┬─ course ─ course_prerequisite (samopowiązanie)
+          ├─ waitlist_entry ─── section  ├─ term ─ enrollment_round
+          ├─ completed_course            ├─ meeting ─ room
+          ├─ section_lecturer ─ section  └─ section_lecturer
           └─ notification
 ```
 `section` jest centralną tabelą: łączy katalog (kurs, semestr, wykładowcy, terminy) z zapisami (`enrollment`, `waitlist_entry`).

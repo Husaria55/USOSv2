@@ -1,0 +1,79 @@
+@startuml przypadki_uzycia_administracja
+!pragma layout smetana
+left to right direction
+title Przypadki użycia (2/2) – dziekanat, prowadzący, zegar (etap 3)
+skinparam shadowing false
+
+actor "Administrator\n(dziekanat)" as A
+actor "Prowadzący" as P
+actor "Zegar systemowy\n(worker)" as Z
+
+rectangle "System zapisów" {
+  usecase "//Operacja pracownika//" as OPP
+  usecase "UC0: Uwierzytelnij się" as UC0
+  usecase "UC10: Przeglądaj listy studentów\nswoich grup (eksport CSV)" as UC10
+  usecase "UC11: Zarządzaj kursami\ni wymaganiami wstępnymi" as UC11
+  usecase "UC12: Zarządzaj grupami,\nsalami i harmonogramem" as UC12
+  usecase UC13 as "UC13: Zmień limit miejsc w grupie
+--
+extension points:
+wolne miejsce po zmianie"
+  usecase UC14 as "UC14: Zapisz / wypisz studenta
+(decyzja dziekanatu)
+--
+extension points:
+zwolnione miejsce"
+  usecase "UC15: Importuj zaliczone\nprzedmioty (CSV)" as UC15
+  usecase "UC16: Otwórz / zamknij /\nprzedłuż turę ręcznie" as UC16
+  usecase "UC17: Otwórz / zamknij turę\no zadanej godzinie" as UC17
+  usecase "UC18: Wygaś listy oczekujących\nkierunków bez otwartej tury" as UC18
+  usecase "UC23: Zaplanuj tury\nkierunków (rozłożone w czasie)" as UC23
+  usecase "UC24: Zarządzaj kontami,\nkierunkami, semestrami" as UC24
+  usecase "UC25: Sprawdź niezmienniki\n(audyt)" as UC25
+  usecase "UC26: Wyślij powiadomienia\ne-mail (outbox)" as UC26
+  usecase "UC4: Wykryj kolizję\nw planie" as UC4
+  usecase "UC27: Wykryj cykl\nwymagań" as UC27
+  usecase "UC9: Awansuj pierwszego\nz listy oczekujących" as UC9
+}
+
+P -- UC10
+A -- UC10
+A -- UC11
+A -- UC12
+A -- UC13
+A -- UC14
+A -- UC15
+A -- UC16
+A -- UC23
+A -- UC24
+A -- UC25
+Z -- UC17
+Z -- UC25
+Z -- UC26
+
+UC10 --|> OPP
+UC11 --|> OPP
+UC12 --|> OPP
+UC13 --|> OPP
+UC14 --|> OPP
+UC15 --|> OPP
+UC16 --|> OPP
+UC23 --|> OPP
+UC24 --|> OPP
+UC25 --|> OPP
+OPP ..> UC0 : <<include>>
+
+UC11 ..> UC27 : <<include>>
+UC12 ..> UC4 : <<include>>\n(sala, prowadzący)
+UC14 ..> UC4 : <<include>>
+UC9 ..> UC13 : <<extend>>
+UC9 ..> UC14 : <<extend>>
+UC16 ..> UC18 : <<include>>\n(przy zamknięciu)
+UC17 ..> UC18 : <<include>>\n(przy zamknięciu)
+
+note bottom of UC23
+  Np. kolejny kierunek co 30 min:
+  w szczycie zapisuje się ~1000 osób
+  zamiast 20 000.
+end note
+@enduml

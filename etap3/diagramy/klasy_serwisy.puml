@@ -1,0 +1,141 @@
+@startuml klasy_serwisy
+!pragma layout smetana
+title Diagram klas (2/3) – serwisy (app/services): każda funkcja to ciało jednej transakcji
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam defaultFontSize 11
+hide empty members
+
+class EnrollmentService <<service>> {
+  + enroll(s: AsyncSession, student_id: int, section_id: int, mode: Mode = DIRECT, actor_id: int | None): EnrollResult
+  + drop(s, student_id: int, section_id: int, mode: Mode = DIRECT, actor_id: int | None): list[PromotionEvent]
+  + leave_waitlist(s, student_id: int, section_id: int): None
+  + change_limits(s, section_id: int, capacity: int | None, waitlist_limit: int | None): list[PromotionEvent]
+  + promote(s, section: LockedSection, target: TargetSection, term_id: int): list[PromotionEvent]
+  + waitlist_position(s, student_id: int, section_id: int): int | None
+}
+class EnrollResult <<dataclass>> {
+  + status: str  {ENROLLED | WAITLISTED}
+  + section_id: int
+  + position: int | None
+  + cancelled_waitlists: list[str]
+}
+class PromotionEvent <<dataclass>> {
+  + student_id: int
+  + status: str  {PROMOTED | SKIPPED}
+  + reason: str | None
+}
+
+class CatalogService <<service>> {
+  + create_program(s, code: str, name: str): int
+  + create_term(s, code: str, starts_on: date, ends_on: date): int
+  + create_room(s, building: str, number: str, seats: int): int
+  + create_course(s, code: str, name: str, ects: int, description: str | None): int
+  + update_course(s, course_id: int, **values): None
+  + add_prerequisite(s, course_id: int, required_id: int): None
+  + remove_prerequisite(s, course_id: int, required_id: int): None
+  + create_section(s, course_id: int, term_id: int, code: str, kind: str, capacity: int, waitlist_limit: int): int
+  + add_meeting(s, section_id: int, weekday: int, start: time, end: time, parity: str, room_id: int | None): int
+  + remove_meeting(s, meeting_id: int): None
+  + assign_lecturer(s, section_id: int, lecturer_id: int): None
+  + remove_lecturer(s, section_id: int, lecturer_id: int): None
+}
+
+class RoundsService <<service>> {
+  + create_round(s, term_id: int, name: str, opens_at: datetime, closes_at: datetime, program_ids: list[int]): int
+  + update_round(s, round_id: int, opens_at: datetime | None, closes_at: datetime | None, program_ids: list[int] | None): None
+  + open_round(s, round_id: int): None
+  + close_round(s, round_id: int): int  {liczba wygasłych wpisów}
+  + expire_uncovered(s, term_id: int): int
+  + apply_schedule(s, now: datetime): list[tuple[int, str]]
+}
+
+class UserService <<service>> {
+  + login(s, email: str, password: str): tuple[str, User]
+  + create_user(s, email, password, full_name, role, index_no?, program_id?, semester?, title?, department?): int
+  + search(s, q: str | None, role: str | None, limit: int = 50): list[User]
+}
+
+class StudentRecordsService <<service>> {
+  + import_grades(s, data: str): ImportResult
+}
+class ImportResult <<dataclass>> {
+  + imported: int
+  + errors: list[str]
+}
+
+class NotificationService <<service>> {
+  + payload(type_: str, label: str, **extra): dict
+  + notify(s, user_id: int, type_: str, label: str, **extra): None
+  + notify_many(s, rows: list[tuple[int, str, dict]]): None
+}
+
+class AuditService <<service>> {
+  + violations(s): list[Violation]
+}
+class Violation <<dataclass>> {
+  + section_id: int
+  + problem: str
+}
+
+class QueryService <<service, read-only>> {
+  + course_list(s, term_id: int | None, q: str | None, limit: int, offset: int): list[dict]
+  + course_detail(s, course_id: int, term_id: int | None): dict
+  + student_course_status(s, student_id: int, course_id: int, term_id: int): dict
+  + student_plan(s, student_id: int, term_id: int): list[dict]
+  + student_waitlist(s, student_id: int, term_id: int): list[dict]
+  + student_rounds(s, student_id: int, term_id: int): list[dict]
+  + all_rounds(s, term_id: int): list[dict]
+  + notifications(s, user_id: int, limit: int = 50): list[dict]
+  + lecturer_sections(s, lecturer_id: int, term_id: int): list[dict]
+  + is_lecturer_of(s, lecturer_id: int, section_id: int): bool
+  + section_roster(s, section_id: int): dict
+}
+
+class Loaders <<data access>> {
+  + lock_student(s, student_id: int, nowait: bool = False): LockedStudent
+  + lock_section(s, section_id: int): LockedSection
+  + load_target(s, section_id: int): tuple[TargetSection, int]
+  + load_targets(s, section_ids: list[int]): dict[int, tuple[TargetSection, int]]
+  + student_state(s, student: LockedStudent, term_id: int, rounds?, need_passed: bool = True): tuple[StudentState, list[WaitingEntry]]
+  + term_rounds(s, term_id: int, only_open: bool = False): list[RoundInfo]
+  + room_seats(s, section_id: int): int | None
+  + waiting_count(s, section_id: int): int
+  + waitlist_positions(s, student_id: int, section_ids?): dict[int, int]
+  + section_labels(s, section_ids: list[int]): dict[int, str]
+  + forget_targets(): None
+}
+class LockedStudent <<dataclass>> {
+  + id: int
+  + program_id: int
+}
+class LockedSection <<dataclass>> {
+  + id: int
+  + capacity: int
+  + enrolled_count: int
+  + waitlist_limit: int
+}
+
+EnrollmentService ..> EnrollResult
+EnrollmentService ..> PromotionEvent
+EnrollmentService --> Loaders
+EnrollmentService --> NotificationService
+RoundsService --> Loaders
+RoundsService --> NotificationService
+QueryService --> Loaders
+CatalogService --> Loaders
+StudentRecordsService ..> ImportResult
+AuditService ..> Violation
+Loaders ..> LockedStudent
+Loaders ..> LockedSection
+
+' układ w rzędach (czytelność na slajdzie)
+EnrollmentService -[hidden]right- CatalogService
+CatalogService -[hidden]down- RoundsService
+QueryService -[hidden]down- UserService
+UserService -[hidden]down- StudentRecordsService
+CatalogService -[hidden]right- QueryService
+RoundsService -[hidden]right- AuditService
+
+note "s: AsyncSession – sesja SQLAlchemy z otwartą transakcją.\nBłędy biznesowe: Conflict (409), NotFound (404), Forbidden (403)\nz kodem, komunikatem i szczegółami." as N1
+@enduml

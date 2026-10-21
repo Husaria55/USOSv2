@@ -35,7 +35,7 @@
   extendedchars=true,
 }
 
-\title{System zapisów na zajęcia}
+\title{System zapisów na zajęcia -- USOSv2}
 \subtitle{Etap 2: architektura, prototypy i struktury danych}
 \author{Kamil Kręcigłowa \and Bartosz Królik \and Krzysztof Krówka}
 \institute{Inżynieria Oprogramowania, zima 2026/2027}
@@ -78,7 +78,7 @@
     \textbf{Wymaganie} & \textbf{Przypadki} & \textbf{Tabele (ER)} & \textbf{Prototyp} \\
     \midrule
     ograniczona liczba miejsc & UC2, UC13 & \texttt{section.capacity}, \texttt{enrolled\_count}, \texttt{waitlist\_limit} & scen. 1, 5 \\
-    katalog i harmonogram & UC1, UC11, UC12 & \texttt{course}, \texttt{section}, \texttt{lecturer}, \texttt{meeting}, \texttt{room}, \texttt{term}, \texttt{enrollment\_round} & scen. 6 \\
+    katalog i harmonogram & UC1, UC11, UC12 & \texttt{course}, \texttt{section}, \texttt{section\_lecturer}, \texttt{meeting}, \texttt{room}, \texttt{term}, \texttt{enrollment\_round} & scen. 6 \\
     różne rozmiary grup & UC12, UC13 & \texttt{section.capacity}, \texttt{section.kind}, \texttt{room.seats} & scen. 1, 4, 5 \\
     wymagania wstępne & UC3, UC11, UC15 & \texttt{course\_prerequisite}, \texttt{completed\_course} & scen. 2, 6 \\
     kolizje w harmonogramie & UC4, UC12 & \texttt{meeting} (dzień, godziny, parzystość) & scen. 3 \\
@@ -319,8 +319,9 @@ AND (mine.week_parity = 'ALL'
       Transakcja zapisu (\texttt{READ COMMITTED}):
 \begin{lstlisting}
 BEGIN;
-SELECT 1 FROM student
- WHERE user_id = :s FOR UPDATE;
+SELECT 1 FROM app_user
+ WHERE id = :s AND role = 'STUDENT'
+   FOR UPDATE;
 SELECT ... FROM section
  WHERE id = :g FOR UPDATE;
 -- tura, wymagania, kolizje
@@ -390,8 +391,8 @@ COMMIT;
       \small
       Awans blokuje B bez czekania:
 \begin{lstlisting}
-SELECT 1 FROM student
- WHERE user_id = :b
+SELECT 1 FROM app_user
+ WHERE id = :b AND role = 'STUDENT'
    FOR UPDATE NOWAIT;
 \end{lstlisting}
       Zajęty B: od razu błąd 55P03, wypis się wycofuje i jest ponawiany.\\[4pt]
@@ -420,36 +421,6 @@ SELECT 1 FROM student
         \item ostrzeżenie: zapis usunie z listy innej grupy
         \item plan tygodnia z zajęciami co dwa tygodnie
         \item powiadomienia o awansie i pominięciu
-      \end{itemize}
-    \end{column}
-  \end{columns}
-\end{frame}
-
-% ---------------------------------------------------------------------------
-\section{Podsumowanie}
-
-\begin{frame}{Podsumowanie i kolejny etap}
-  \begin{columns}[T]
-    \begin{column}{0.5\textwidth}
-      \small
-      \textbf{Gotowe}
-      \begin{itemize}
-        \item architektura i stos technologiczny
-        \item przypadki użycia UC0--UC18 z głównymi scenariuszami
-        \item diagram ER + \texttt{schemat.sql} (PostgreSQL 16)
-        \item działający prototyp 6 scenariuszy ryzyka
-        \item mock-up ekranu zapisów
-      \end{itemize}
-    \end{column}
-    \begin{column}{0.46\textwidth}
-      \small
-      \textbf{Etap 3 (28.X)}
-      \begin{itemize}
-        \item diagramy sekwencji: zapis, wypis z awansem, otwarcie tury
-        \item diagram klas / komponentów z metodami
-        \item uprawnienia ról i obsługa błędów
-        \item test blokad i wydajności na PostgreSQL
-        \item zamiana grupy bez utraty miejsca
       \end{itemize}
     \end{column}
   \end{columns}

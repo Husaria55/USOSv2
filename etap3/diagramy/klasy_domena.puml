@@ -1,0 +1,130 @@
+@startuml klasy_domena
+!pragma layout smetana
+title Diagram klas (1/3) – domena: reguły biznesowe (app/domain), bez dostępu do bazy
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam defaultFontSize 11
+hide empty members
+left to right direction
+
+package "schedule" {
+  class Slot <<dataclass, frozen>> {
+    + weekday: int  {1..7}
+    + start: time
+    + end: time
+    + parity: str  {ALL | ODD | EVEN}
+  }
+  class ScheduledSection <<dataclass, frozen>> {
+    + section_id: int
+    + code: str
+    + course_code: str
+    + slots: tuple[Slot, ...]
+    + label: str  {property}
+  }
+  class schedule <<module>> {
+    + weeks_overlap(a: str, b: str): bool
+    + slots_overlap(a: Slot, b: Slot): bool
+    + any_overlap(mine: Iterable[Slot], other: Iterable[Slot]): bool
+    + conflicting_sections(plan: Iterable[ScheduledSection], new: Iterable[Slot]): list[ScheduledSection]
+  }
+}
+
+package "prerequisites" {
+  class prerequisites <<module>> {
+    + missing_prerequisites(required: Iterable[int], passed: Iterable[int]): set[int]
+    + creates_cycle(graph: Mapping[int, Iterable[int]], course_id: int, required_id: int): bool
+  }
+}
+
+package "rounds" {
+  class RoundInfo <<dataclass, frozen>> {
+    + id: int
+    + status: str  {PLANNED | OPEN | CLOSED}
+    + opens_at: datetime
+    + closes_at: datetime
+    + program_ids: frozenset[int]  {pusty = wszystkie}
+  }
+  class rounds <<module>> {
+    + covers(round_: RoundInfo, program_id: int): bool
+    + student_can_enroll(rounds: Iterable[RoundInfo], program_id: int): bool
+    + scheduled_transition(round_: RoundInfo, now: datetime): str | None
+  }
+}
+
+package "enrollment_rules" {
+  enum Mode {
+    DIRECT
+    WAITLIST
+    ADMIN
+  }
+  enum Outcome {
+    ENROLL
+    WAITLIST
+    ENROLL_OVER_CAPACITY
+  }
+  class Refusal <<dataclass, frozen>> {
+    + code: str
+    + message: str
+    + details: tuple[str, ...]
+  }
+  class PlanEntry <<dataclass, frozen>> {
+    + course_id: int
+    + kind: str
+  }
+  class TargetSection <<dataclass, frozen>> {
+    + id: int
+    + course_id: int
+    + course_code: str
+    + code: str
+    + kind: str
+    + slots: tuple[Slot, ...]
+    + prerequisites: Mapping[int, str]
+    + label: str  {property}
+  }
+  class StudentState <<dataclass, frozen>> {
+    + round_open: bool
+    + plan: tuple[PlanEntry, ...]
+    + passed_course_ids: frozenset[int]
+    + waiting_section_ids: frozenset[int]
+  }
+  class WaitingEntry <<dataclass, frozen>> {
+    + id: int
+    + section_id: int
+    + course_id: int
+    + kind: str
+  }
+  class SeatState <<dataclass, frozen>> {
+    + capacity: int
+    + enrolled_count: int
+    + waitlist_limit: int
+    + waiting_count: int
+    + room_seats: int | None
+  }
+  class enrollment_rules <<module>> {
+    + check_student(student: StudentState, target: TargetSection, mode: Mode): list[Refusal]
+    + decide_seat(seat: SeatState, mode: Mode): Outcome | Refusal
+    + same_kind_waiting(waiting: Iterable[WaitingEntry], course_id: int, kind: str): list[int]
+  }
+}
+
+ScheduledSection o-- "0..*" Slot
+PlanEntry -|> ScheduledSection
+TargetSection o-- "0..*" Slot
+StudentState o-- "0..*" PlanEntry
+enrollment_rules ..> StudentState
+enrollment_rules ..> TargetSection
+enrollment_rules ..> SeatState
+enrollment_rules ..> Refusal : zwraca
+enrollment_rules ..> Outcome : zwraca
+enrollment_rules ..> Mode
+enrollment_rules ..> schedule : conflicting_sections
+enrollment_rules ..> prerequisites : missing_prerequisites
+rounds ..> RoundInfo
+
+note bottom of enrollment_rules
+  check_student – wszystkie powody odmowy zależne od planu studenta
+  (sprawdzane pod blokadą studenta, przed blokadą grupy).
+  decide_seat – miejsce w grupie (pod blokadą grupy).
+  ADMIN pomija turę i wymagania; WAITLIST pomija turę i własny wpis.
+end note
+@enduml

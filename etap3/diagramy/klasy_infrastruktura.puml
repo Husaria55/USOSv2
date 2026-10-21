@@ -1,0 +1,137 @@
+@startuml klasy_infrastruktura
+!pragma layout smetana
+title Diagram klas (3/3) – API, kontrola ruchu, transakcje, worker
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam defaultFontSize 11
+hide empty members
+set separator none
+
+package "app/api" {
+  class StudentRouter <<FastAPI router /api>> {
+    + GET /me
+    + GET /terms, /programs
+    + GET /terms/{t}/courses?q&limit&offset
+    + GET /terms/{t}/courses/{c}
+    + GET /me/terms/{t}/courses/{c}  (UC19)
+    + GET /me/terms/{t}/plan | /waitlist | /rounds
+    + POST /me/enrollments {section_id}  (UC2, UC5)
+    + DELETE /me/enrollments/{s}  (UC6)
+    + DELETE /me/waitlist/{s}  (UC7)
+    + GET /me/notifications, POST /me/notifications/read
+  }
+  class LecturerRouter <<FastAPI router /api>> {
+    + GET /lecturer/terms/{t}/sections
+    + GET /sections/{s}/roster  (UC10)
+  }
+  class AdminRouter <<FastAPI router /api/admin>> {
+    + POST programs, terms, rooms, users  (UC24)
+    + GET/POST/PATCH courses, POST/DELETE prerequisites  (UC11)
+    + POST sections, PATCH sections/{s}  (UC12, UC13)
+    + POST sections/{s}/meetings, lecturers  (UC12)
+    + POST enrollments, DELETE enrollments/{st}/{s}  (UC14)
+    + GET/POST/PATCH rounds, POST rounds/{r}/open|close  (UC16, UC23)
+    + POST grades/import  (UC15)
+    + GET audit  (UC25)
+  }
+  class AuthRouter <<FastAPI router /api/auth>> {
+    + POST /login {email, password}: {token, user}
+  }
+  class deps <<module>> {
+    + current_user(authorization: str): CurrentUser
+    + role(*roles: str): Callable
+    + write_slot(user_id: int): AsyncContextManager
+    + catalog_cache: TTLCache
+    + rate_limiter: RateLimiter
+    + write_gate: Gate
+    + read_gate: Gate
+  }
+  class CurrentUser <<dataclass>> {
+    + id: int
+    + role: str
+  }
+}
+
+package "app/traffic.py" {
+  class TTLCache {
+    - ttl: float
+    - max_items: int
+    + get(key, load: Callable[[], Awaitable[T]]): T
+    + clear(): None
+  }
+  class RateLimiter {
+    - limit: int
+    - window: float
+    + check(key): None  {raises TooManyRequests 429}
+    + refund(key): None
+  }
+  class Gate {
+    - timeout: float
+    + rejected: int
+    + slot(): AsyncContextManager  {raises Overloaded 503}
+  }
+}
+
+package "app/db.py, app/security.py" {
+  class db <<module>> {
+    + engine: AsyncEngine
+    + Session: async_sessionmaker
+    + run_transaction(fn: Callable[[AsyncSession], Awaitable[T]]): T
+    + sqlstate(exc: BaseException): str | None
+    + retry_stats: dict[str, int]
+  }
+  class security <<module>> {
+    + hash_password(password: str): str
+    + verify_password(password: str, hashed: str): bool
+    + create_token(user_id: int, role: str): str
+    + decode_token(token: str): dict
+  }
+}
+
+package "app/errors.py" {
+  class AppError {
+    + status: int
+    + code: str
+    + message: str
+    + details: list[str]
+  }
+  class NotFound
+  class Forbidden
+  class Conflict {
+    + from_refusal(r: Refusal): Conflict
+  }
+  class TooManyRequests
+  class Overloaded
+}
+
+class worker <<process>> {
+  + schedule_rounds(): None
+  + expire_stragglers(): None
+  + send_outbox(batch: int = 100): int
+  + run_audit(): None
+  + main(): None
+}
+
+NotFound -|> AppError
+Forbidden -|> AppError
+Conflict -|> AppError
+TooManyRequests -|> AppError
+Overloaded -|> AppError
+StudentRouter ..> deps
+AdminRouter ..> deps
+LecturerRouter ..> deps
+deps --> TTLCache
+deps --> RateLimiter
+deps --> Gate
+deps ..> security
+StudentRouter ..> db : run_transaction
+AdminRouter ..> db : run_transaction
+worker ..> db
+AuthRouter ..> security
+
+note bottom of db
+  run_transaction: nowa sesja + BEGIN; przy SQLSTATE 55P03 / 40P01 / 40001
+  ROLLBACK, odczekanie 5–20 ms × 2^n i ponowienie (maks. 5 razy),
+  potem TooManyRetries -> 503 BUSY.
+end note
+@enduml

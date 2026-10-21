@@ -22,7 +22,7 @@ Temat 2, *System zapisu na zajęcia*:
 | Wymaganie z tematu | Przypadek użycia | Tabele (ER) | Prototyp |
 |---|---|---|---|
 | ograniczona liczba miejsc | UC2, UC13 | `section.capacity`, `enrolled_count`, `waitlist_limit` | scenariusz 1, 5 |
-| katalog: kursy, sekcje, wykładowcy, harmonogramy | UC1, UC11, UC12 | `course`, `section`, `lecturer`, `section_lecturer`, `meeting`, `room`, `term`, `enrollment_round` | scenariusz 6 (tura) |
+| katalog: kursy, sekcje, wykładowcy, harmonogramy | UC1, UC11, UC12 | `course`, `section`, `section_lecturer`, `meeting`, `room`, `term`, `enrollment_round` | scenariusz 6 (tura) |
 | różne rozmiary grup | UC12, UC13 | `section.capacity` per grupa, `section.kind`, `room.seats` | scenariusz 1, 4, 5 |
 | wymagania wstępne (zaliczone przedmioty) | UC3, UC11, UC15 | `course_prerequisite`, `completed_course` | scenariusz 2, 6 |
 | wykrywanie konfliktów w harmonogramie | UC4, UC12 | `meeting` (dzień, godziny, parzystość tygodni) | scenariusz 3 |

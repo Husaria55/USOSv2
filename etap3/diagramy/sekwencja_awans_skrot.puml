@@ -1,0 +1,32 @@
+@startuml sekwencja_awans_skrot
+title Wypis i awans z listy (UC6 + UC9) – jedna transakcja
+skinparam shadowing false
+skinparam defaultFontSize 15
+skinparam sequenceMessageAlign left
+autonumber
+
+actor "Student A" as A
+participant "EnrollmentService" as svc
+participant "domena" as dom
+database "PostgreSQL" as db
+participant "Worker" as w
+
+A -> svc : drop()
+svc -> db : blokada A, blokada grupy
+svc -> db : DROPPED, licznik −1
+loop dopóki jest wolne miejsce
+  svc -> db : pierwszy WAITING (ORDER BY id)
+  svc -> db : blokada B – FOR UPDATE NOWAIT
+  alt B zajęty (55P03)
+    db --> svc : ROLLBACK, ponowienie całości\n(B nie traci kolejki)
+  end
+  svc -> dom : check_student(B, WAITLIST)
+  alt warunki spełnione
+    svc -> db : zapis B, PROMOTED, powiadomienie
+  else kolizja / wymagania
+    svc -> db : SKIPPED z powodem, powiadomienie
+  end
+end
+svc -> db : COMMIT
+w -> db : outbox -> e-mail do B
+@enduml

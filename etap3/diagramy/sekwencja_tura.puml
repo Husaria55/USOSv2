@@ -1,0 +1,53 @@
+@startuml sekwencja_tura
+title UC17 / UC18 / UC25 / UC26 – worker: tury według harmonogramu, wygaszanie list, outbox, audyt
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+autonumber
+
+participant "Zegar\n(pętla co 5 s)" as clock
+participant "worker" as w
+participant "RoundsService" as rs
+participant "domain.rounds" as dom
+participant "loaders" as ld
+database "PostgreSQL" as db
+participant "SMTP" as smtp
+
+clock -> w : kolejny przebieg
+w -> rs : run_transaction(apply_schedule(now))
+rs -> db : SELECT * FROM enrollment_round\nWHERE status IN ('PLANNED','OPEN') FOR UPDATE SKIP LOCKED
+loop każda tura
+  rs -> dom : scheduled_transition(round, now)
+  alt "OPEN" (opens_at <= now < closes_at)
+    rs -> db : UPDATE enrollment_round SET status='OPEN'
+  else "CLOSED" (now >= closes_at)
+    rs -> db : UPDATE enrollment_round SET status='CLOSED'
+    group expire_uncovered(term_id) – UC18
+      rs -> ld : term_rounds(term_id, only_open=True)
+      rs -> db : SELECT id FROM program
+      rs -> dom : covers(round, program) dla każdego kierunku
+      dom --> rs : kierunki bez otwartej tury
+      rs -> db : UPDATE waitlist_entry SET status='EXPIRED'\nWHERE status='WAITING' AND grupa w semestrze\nAND student z tych kierunków RETURNING ...
+      rs -> db : INSERT INTO notification (EXPIRED) ×N
+    end
+  else None
+    rs -> rs : bez zmian (np. tura zamknięta ręcznie nie jest otwierana ponownie)
+  end
+end
+rs -> db : COMMIT
+
+w -> rs : expire_stragglers(): expire_uncovered dla semestrów z wpisami WAITING
+note right : wpis dopisany przez zapis, który zaczął się\ntuż przed zamknięciem tury
+
+w -> db : send_outbox(): SELECT ... FOR UPDATE SKIP LOCKED LIMIT 100
+alt SMTP działa
+  w -> smtp : wyślij e-maile
+  w -> db : UPDATE notification SET sent_at = now()
+else SMTP niedostępny
+  w -> db : UPDATE notification SET attempts = attempts + 1\n(po 5 próbach worker odpuszcza)
+end
+
+opt co 60 s – UC25
+  w -> db : audit.violations(): licznik vs zapisy, oczekujący przy wolnych\nmiejscach, zapisany i oczekujący, czeka mimo grupy tego typu
+  w -> w : log ERROR dla każdego naruszenia
+end
+@enduml

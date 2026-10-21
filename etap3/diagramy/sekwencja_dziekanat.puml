@@ -1,0 +1,57 @@
+@startuml sekwencja_dziekanat
+title UC14 / UC13 – decyzje dziekanatu: zapis ponad limit, wypis, zmiana limitu
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+autonumber
+
+actor Dziekanat
+participant "API admin" as api
+participant "EnrollmentService" as svc
+participant "domain" as dom
+database "PostgreSQL" as db
+
+== Zapis studenta (POST /api/admin/enrollments) ==
+Dziekanat -> api : {student_id, section_id}
+api -> svc : enroll(..., mode=ADMIN, actor_id=dziekanat)
+svc -> db : lock_student, load_target, student_state
+svc -> dom : check_student(state, target, ADMIN)
+note right of dom : ADMIN pomija turę i wymagania;\nkolizje i „jedna grupa danego typu”\nsprawdzane zawsze
+alt CONFLICT / SAME_KIND
+  api --> Dziekanat : 409
+end
+svc -> db : lock_section
+opt grupa pełna
+  svc -> db : waiting_count, room_seats (najmniejsza sala grupy)
+end
+svc -> dom : decide_seat(seat, ADMIN)
+alt ENROLL_OVER_CAPACITY (capacity + 1 <= sala)
+  svc -> db : UPDATE section SET enrolled_count+1, capacity+1
+else ROOM_FULL
+  api --> Dziekanat : 409 ROOM_FULL
+end
+svc -> db : INSERT enrollment (source='ADMIN', created_by)\nwpisy WAITING tego typu (także w tej grupie) -> CANCELLED
+svc -> db : INSERT notification (ADMIN_ENROLLED)
+api --> Dziekanat : 200 ENROLLED
+note over svc, db : kolejka oczekujących nie traci miejsca:\nlimit rośnie o 1 tylko dla tego zapisu
+
+== Wypis studenta (DELETE /api/admin/enrollments/{student}/{section}) ==
+Dziekanat -> api : wypis
+api -> svc : drop(..., mode=ADMIN)
+svc -> db : jak UC6, ale bez sprawdzania tury;\nnotification (ADMIN_DROPPED)
+svc -> svc : promote() – UC9
+note right : po turze listy są wygaszone (EXPIRED),\nwięc nikt nie awansuje bez swojej wiedzy
+api --> Dziekanat : 200 {promotions}
+
+== Zmiana limitu (PATCH /api/admin/sections/{id}) – UC13 ==
+Dziekanat -> api : {capacity, waitlist_limit}
+api -> svc : change_limits(...)
+svc -> db : lock_section
+alt capacity < enrolled_count
+  api --> Dziekanat : 409 BELOW_ENROLLED
+else capacity > miejsca w sali
+  api --> Dziekanat : 409 ROOM_FULL
+end
+svc -> db : UPDATE section SET capacity, waitlist_limit
+svc -> svc : promote() – wolne miejsca od razu dla oczekujących
+api --> Dziekanat : 200 {promotions: [{student_id, PROMOTED|SKIPPED}]}
+@enduml
