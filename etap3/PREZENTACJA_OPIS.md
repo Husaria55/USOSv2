@@ -1,51 +1,34 @@
 # Etap 3 (28.X) – opis prezentacji i przygotowanie do pytań
 
 Dwie wersje slajdów:
-- **`prezentacja/prezentacja_krotka.pdf` – na prezentację (7 minut)**: 9 slajdów treści + 12 zapasowych
-  (pozostałe diagramy, pokazywane tylko przy pytaniach). Scenariusz niżej.
-- `prezentacja/prezentacja.pdf` – pełna (26 slajdów, ok. 15 min) – do oddania / przeglądania.
+- **`prezentacja/prezentacja_krotka.pdf` – na prezentację (7 minut)**: tytuł, 10 slajdów treści
+  i „Dziękujemy”, potem 12 slajdów zapasowych (pozostałe diagramy i ekrany – tylko przy pytaniach).
+- `prezentacja/prezentacja.pdf` – pełna (26 slajdów treści, 35 stron z tytułem i stronami sekcji,
+  ok. 15 min) – do oddania / przeglądania.
 
-Kompilacja: `cd etap3/prezentacja && ../../.tools/bin/tectonic prezentacja_krotka.tex`.
+Kompilacja: `prezentacja/build.sh` w katalogu głównym raz pobiera tectonic do `.tools/bin`, potem
+`cd etap3/prezentacja && ../../.tools/bin/tectonic prezentacja_krotka.tex` (i `prezentacja.tex`).
 Szczegóły do każdego slajdu są w `README.md` (numery sekcji w nawiasach).
 
-## Wersja 7 minut – scenariusz
+## Wersja 7 minut – skrypt
 
-**Zasada:** w 7 minut nie da się omówić 7 sekwencji i 3 diagramów klas. Pokazujemy, że *wszystko
-jest* (slajd 1 wymienia całość, README ją zawiera), a omawiamy jeden wątek od początku do końca:
-**zapis do grupy** – przypadek użycia → sekwencja → klasy → dane → wydajność. Reszta czeka
-w slajdach zapasowych na pytania.
+**Tekst do powiedzenia, czasy, podział na osoby i źródła liczb: [`SKRYPT_7MIN.md`](SKRYPT_7MIN.md)**
+(jedyne źródło – nie kopiować go tutaj, żeby wersje się nie rozjechały).
 
-Tekst poniżej ma ok. 550 słów: przy ok. 120 słowach na minutę to 4:40 samej mowy, a z pauzami,
-wskazywaniem kroków na diagramach i zmianami osób ok. 6–6:30 – zostaje pół minuty zapasu.
-Trzy osoby po ok. 2:20 (kolumna „Do” to moment końca slajdu). Zmiana osoby bez zapowiadania
-(„teraz kolega…”) – od razu treść.
-
-| Slajd | Do | Kto | Co powiedzieć |
-|---|---|---|---|
-| Tytuł | 0:10 | Osoba 1 | „System zapisów na zajęcia, etap trzeci – projekt wstępny.” |
-| 1. Trzy decyzje | 0:45 | Osoba 1 | „Od ostatniej prezentacji podjęliśmy trzy decyzje. Pierwsza: tury per kierunek – dwadzieścia tysięcy studentów nie zapisuje się naraz, tylko kierunek po kierunku, więc w szczycie jest około tysiąca osób. Druga: reguły biznesowe są w kodzie, nie w SQL – baza pilnuje tylko spójności. Trzecia: projekt jest sprawdzony działającą implementacją. Pełna dokumentacja – wszystkie przypadki użycia, siedem sekwencji, trzy diagramy klas z opisem metod – jest w repozytorium; dziś przejdziemy jeden wątek: zapis do grupy.” |
-| 2. Architektura | 1:45 | Osoba 1 | „Przeglądarka z aplikacją w React, nginx serwuje statykę i przekazuje żądania do API w FastAPI. API ma warstwy: HTTP sprawdza token i rolę, serwis prowadzi transakcję, domena podejmuje decyzję, warstwa danych tylko czyta i zapisuje w PostgreSQL. Obok działa worker: otwiera i zamyka tury, wysyła e-maile. API nie trzyma stanu, więc przy większym ruchu dokładamy instancje. Stos po prawej – każdy wybór uzasadniamy w dokumentacji; na przykład asyncpg w ścieżce zapisu wybraliśmy po pomiarze, bo ORM zjadał procesor.” |
-| 3. Przypadki użycia | 2:30 | Osoba 2 | „Przypadki użycia studenta. Główny to UC2, zapis do grupy. Zawsze dołącza sprawdzenie wymagań, kolizji i – nowość – uprawnienia, czyli czy trwa tura jego kierunku. Gdy brak miejsc, rozszerza go dopisanie do listy oczekujących. Nowy jest też podgląd statusu grup: student widzi przy każdej grupie, czy może się zapisać, a jeśli nie, to dlaczego. Przypadki dziekanatu i workera są na drugim diagramie, w zapasie.” |
-| 4. Sekwencja zapisu | 3:30 | Osoba 2 | „Tak wygląda zapis. Najpierw kontrola ruchu: limit operacji na studenta i bramka – przy nadmiarze API od razu odpowiada 503 z informacją, kiedy ponowić, a przeglądarka ponawia sama. Potem transakcja. Krok cztery: blokujemy wiersz studenta, wczytujemy jego plan i sprawdzamy reguły. Jeśli jest odmowa, student dostaje powód, na przykład kolizję z konkretną grupą. Dopiero potem, w kroku ósmym, blokujemy grupę – i trzymamy tę blokadę bardzo krótko: sprawdzenie miejsca i zapis. Dzięki tej kolejności popularna grupa nie jest blokowana przez sprawdzanie planów.” |
-| 5. Wypis i awans | 4:15 | Osoba 2 | „Wypis i awans z listy to jedna transakcja, więc nikt spoza listy nie zajmie zwolnionego miejsca. Tu kolejność blokad jest odwrotna: trzymamy grupę i blokujemy oczekującego. Żeby nie było zakleszczenia, blokujemy go bez czekania; jeśli jest zajęty, wycofujemy wszystko i ponawiamy – nie traci kolejki. Kto nie spełnia już warunków, dostaje status pominięty z powodem i powiadomienie.” |
-| 6. Klasy | 5:00 | Osoba 3 | „Projekt klas na przykładzie zapisu. Serwis wywołuje dwie funkcje domeny. check_student dostaje stan studenta i grupę, zwraca listę powodów odmowy. decide_seat dostaje stan miejsc i zwraca decyzję: zapis, lista, albo dla dziekanatu – zapis ponad limit, ale nie ponad salę. Domena nie zna bazy, dostaje gotowe dane i jest testowana bez niej. Te dwa kroki odpowiadają dwóm blokadom z sekwencji. Pełne diagramy, z typami parametrów i opisem każdej metody, są w dokumentacji.” |
-| 7. ER | 5:35 | Osoba 3 | „Model danych. Nowe są kierunek i powiązanie tury z kierunkami – tura bez kierunków obejmuje wszystkich. Użytkownicy w jednej tabeli z rolą. Ograniczenia w bazie zostały jako siatka bezpieczeństwa – i zadziałała: przy refaktoryzacji błąd zdjął blokadę grupy, a ograniczenie odrzuciło jedenasty zapis na dziesięć miejsc.” |
-| 8. Duży ruch | 6:40 | Osoba 3 | „Czy to wytrzyma – zmierzyliśmy. Tysiąc studentów jednego kierunku naraz, każdy zapisuje się na sześć przedmiotów. Pierwsza wersja nie przeszła: limit liczył ponowienia i studenci wpadali w kaskadę odmów. Po poprawkach dziewięćdziesiąt pięć procent zapisów poniżej dwóch sekund, zero ponowień. Przy trzech kierunkach naraz system zwalnia, ale nie przepełnia żadnej grupy. Stąd wniosek: tury per kierunek są konieczne, a przepustowość rośnie z liczbą instancji API.” |
-| 9. Pytania | 7:00 | Osoba 3 | „Dziękujemy, chętnie odpowiemy na pytania.” |
-
-**Czego nie mówić w 7 minutach** (jest w zapasie albo w README): szczegóły workera i outboxa,
-harmonogram i kolizje sal, import ocen, logowanie i JWT, kody błędów, uprawnienia, ekrany.
+**Zasada:** w 7 minut omawiamy jeden wątek od początku do końca – **zapis do grupy**: przypadek
+użycia → sekwencja → klasy → dane – a pozostałe elementy projektu pokazujemy jednym slajdem
+każdy: pięć pozostałych sekwencji (slajd 6), uprawnienia i błędy (slajd 9), weryfikację (slajd 10).
+Pełne diagramy czekają w slajdach zapasowych.
 
 **Przy pytaniach** – slajdy zapasowe w tej kolejności: przypadki dziekanatu, pełna sekwencja
 zapisu, pełny wypis z awansem, tury i worker, dziekanat, harmonogram, wymagania + import,
-logowanie, klasy (domena, serwisy, infrastruktura), uprawnienia i błędy, ekrany.
+logowanie, klasy (domena, serwisy, infrastruktura), ekrany.
 
-**Przygotowanie:**
-1. Każda osoba czyta swój fragment na głos ze stoperem – limit 2:20 na osobę.
-2. Jeśli ktoś przekracza czas, skraca u siebie (np. pomija zdanie o stosie na slajdzie 2 albo
-   o SKIPPED na slajdzie 5), a nie u kolejnej osoby.
-3. Jedna próba całości, ze zmianami osób i przełączaniem slajdów.
-4. Na slajdach 4 i 5 wskazywać numery kroków na diagramie (4 i 8; pętla) – słuchacz idzie za palcem.
+**Notacja ramek na diagramach sekwencji** (może paść pytanie): `break` – błąd kończy operację
+(wyjątek → `ROLLBACK` → odpowiedź z kodem), dalsze kroki się nie wykonują; `alt` – wybór jednej
+z gałęzi; `opt` – krok warunkowy, po którym przebieg idzie dalej; `loop` – powtarzanie; `group` –
+nazwany scenariusz (np. trzy decyzje dziekanatu na jednym diagramie). Przy awansie konflikt blokady
+(55P03) to `alt`, bo `break` w pętli wychodziłby tylko z pętli, a przerywana jest cała transakcja.
 
 ## Pełna wersja – przebieg
 

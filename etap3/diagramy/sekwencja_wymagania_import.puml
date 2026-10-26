@@ -32,7 +32,7 @@ rec -> rec : csv.DictReader – wiersze
 rec -> db : 3 zapytania: indeksy -> id studentów,\nkody kursów -> id, kody semestrów -> id
 loop każdy wiersz
   rec -> rec : walidacja: znany indeks, kurs, semestr;\nocena ∈ {2.0, 3.0, 3.5, 4.0, 4.5, 5.0}
-  alt błąd
+  opt błąd w wierszu
     rec -> rec : errors += "wiersz N: ..."
   end
 end

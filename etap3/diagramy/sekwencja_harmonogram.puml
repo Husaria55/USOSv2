@@ -13,7 +13,7 @@ database "PostgreSQL" as db
 Dziekanat -> api : POST /api/admin/sections/{id}/meetings\n{weekday, start, end, parity, room_id}
 api -> api : walidacja Pydantic (weekday 1–7, parity)\nrola ADMIN
 api -> svc : run_transaction(add_meeting(...))
-alt start >= end
+break start >= end
   api --> Dziekanat : 409 BAD_TIME
 end
 svc -> db : SELECT section; SELECT lecturer_id FROM section_lecturer
@@ -21,18 +21,20 @@ svc -> db : pg_advisory_xact_lock(sala), pg_advisory_xact_lock(prowadzący)…\n
 note right of db : dwóch pracowników nie doda\nnaraz kolidujących terminów
 opt podana sala
   svc -> db : SELECT seats FROM room
-  alt section.capacity > seats
-    api --> Dziekanat : 409 ROOM_TOO_SMALL
-  end
+end
+break podana sala i section.capacity > seats (ROLLBACK)
+  api --> Dziekanat : 409 ROOM_TOO_SMALL
+end
+opt podana sala
   svc -> db : terminy wszystkich grup w tej sali w semestrze
   svc -> dom : conflicting_sections(plan_sali, [nowy termin])
-  alt kolizja
-    api --> Dziekanat : 409 ROOM_BUSY {details: grupy}
-  end
+end
+break kolizja sali (ROLLBACK)
+  api --> Dziekanat : 409 ROOM_BUSY {details: grupy}
 end
 svc -> db : terminy grup tych samych prowadzących w semestrze
 svc -> dom : conflicting_sections(plan_prowadzących, [nowy termin])
-alt kolizja
+break kolizja prowadzącego (ROLLBACK)
   api --> Dziekanat : 409 LECTURER_BUSY {details: grupy}
 end
 svc -> db : INSERT INTO meeting ... RETURNING id

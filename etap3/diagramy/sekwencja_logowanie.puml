@@ -32,6 +32,8 @@ alt brak / wygasły token
   api --> spa : 401 -> SPA wylogowuje
 else zła rola
   api --> spa : 403 FORBIDDEN
+else token ważny, rola właściwa
+  api -> api : obsługa żądania (endpoint)
 end
 note over spa, api
   Token ważny kilka godzin: studenci logują się przed turą,

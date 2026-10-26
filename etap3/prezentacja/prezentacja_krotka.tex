@@ -1,5 +1,7 @@
 % Prezentacja - etap 3 (28.X), wersja na 7 minut. Pełna wersja: prezentacja.tex.
-% Kompilacja (XeLaTeX):  tectonic prezentacja.tex   (albo ../../prezentacja/build.sh nie dotyczy etapu 3)
+% Tekst do powiedzenia i czasy: ../SKRYPT_7MIN.md (komentarze "% N --- m:ss" = koniec slajdu N).
+% Kompilacja: ../../prezentacja/build.sh raz pobiera tectonic do ../../.tools/bin, potem
+%   ../../.tools/bin/tectonic prezentacja_krotka.tex
 \documentclass[aspectratio=169,11pt]{beamer}
 
 \usetheme[progressbar=frametitle,numbering=fraction]{metropolis}
@@ -75,7 +77,7 @@
   \footnotesize Pełna dokumentacja: \texttt{etap3/README.md} -- wszystkie przypadki użycia (UC0--UC27), 7 sekwencji, 3 diagramy klas z opisem metod, ER, uprawnienia, kody błędów.
 \end{frame}
 
-% 2 ------------------------------------------------------------------ 1:45
+% 2 ------------------------------------------------------------------ 1:35
 \begin{frame}{Architektura i stos technologiczny}
   \begin{columns}[c]
     \begin{column}{0.58\textwidth}
@@ -96,74 +98,50 @@
         \bottomrule
       \end{tabular}\\[6pt]
       \footnotesize
-      \textbf{Zasada:} warstwa HTTP $\rightarrow$ serwis (= transakcja) $\rightarrow$ domena decyduje, \texttt{loaders} czytają i zapisują.\\[3pt]
+      \textbf{Zasada:} warstwa HTTP $\rightarrow$ serwis (= transakcja) $\rightarrow$ domena decyduje; \texttt{loaders} czytają dane i blokują wiersze, serwis zapisuje wynik.\\[3pt]
       API bezstanowe -- skalowanie kolejnymi instancjami.
     \end{column}
   \end{columns}
 \end{frame}
 
-% 3 ------------------------------------------------------------------ 2:30
+% 3 ------------------------------------------------------------------ 2:15
 \fullimage{przypadki_uzycia_student.png}
 
-% 4 ------------------------------------------------------------------ 3:30
+% 4 ------------------------------------------------------------------ 3:05
 \fullimage[0.92]{sekwencja_zapis_skrot.png}
 
-% 5 ------------------------------------------------------------------ 4:15
+% 5 ------------------------------------------------------------------ 3:45
 \fullimage[0.92]{sekwencja_awans_skrot.png}
 
-% 6 ------------------------------------------------------------------ 5:00
+% 6 ------------------------------------------------------------------ 4:20
+\begin{frame}{Pozostałe diagramy sekwencji}
+  \footnotesize
+  \begin{tabularx}{\textwidth}{@{}>{\raggedright}p{3.4cm}>{\raggedright}p{2.9cm}L@{}}
+    \toprule
+    \textbf{Diagram} & \textbf{Przypadki} & \textbf{Co pokazuje} \\
+    \midrule
+    tury i worker & UC17, UC18, UC25, UC26 & harmonogram tur co 5\,s, wygaszanie list kierunków, outbox e-mail z ponawianiem, audyt co 60\,s \\
+    decyzje dziekanatu & UC13, UC14 & zapis ponad limit (nie ponad salę), wypis bez tury, zmiana limitu $\Rightarrow$ awans \\
+    harmonogram & UC12, UC4 & blokady doradcze; kolizje sali i prowadzącego, sala za mała \\
+    wymagania i import ocen & UC11, UC27, UC15 & wykrywanie cyklu wymagań pod blokadą; import CSV z raportem błędów \\
+    logowanie & UC0 & bcrypt w wątku, JWT 12\,h, rola sprawdzana bez zapytania do bazy \\
+    \bottomrule
+  \end{tabularx}\\[8pt]
+  Każdy błąd biznesowy kończy operację (\texttt{break}): \texttt{ROLLBACK} i odpowiedź z kodem.
+  Pełne diagramy: slajdy zapasowe i \texttt{etap3/README.md}, sekcja 5.
+\end{frame}
+
+% 7 ------------------------------------------------------------------ 4:55
 \begin{frame}{Projekt klas: reguły w domenie}
   \centering\includegraphics[width=\textwidth,height=0.7\textheight,keepaspectratio]{klasy_skrot.png}\\[2pt]
   \footnotesize Dwa kroki = dwie blokady: \texttt{check\_student} (plan studenta), potem \texttt{decide\_seat} (miejsce w grupie).
   Pełne diagramy klas (domena, serwisy, infrastruktura) z opisem metod -- zapas i \texttt{README.md} §7.
 \end{frame}
 
-% 7 ------------------------------------------------------------------ 5:35
+% 8 ------------------------------------------------------------------ 5:20
 \fullimage{er.pdf}
 
-% 8 ------------------------------------------------------------------ 6:40
-\begin{frame}{Duży ruch: zmierzone, nie założone}
-  \footnotesize
-  k6: każdy student przegląda katalog i zapisuje się na 6 przedmiotów (wykład + laboratorium).\\[4pt]
-  \begin{tabularx}{\textwidth}{@{}L>{\raggedleft}p{1.7cm}>{\raggedleft}p{1.9cm}>{\raggedleft\arraybackslash}p{3.2cm}@{}}
-    \toprule
-    \textbf{Scenariusz} & \textbf{p95 zapisu} & \textbf{sesja} & \textbf{ponowienia / spójność} \\
-    \midrule
-    1 kierunek (1000 osób) -- pierwsza wersja & 2,5\,s & 2\,min & \bad{22\,873}, OK \\
-    1 kierunek (1000 osób) -- po poprawkach & \good{1,9\,s} & \good{17\,s} & \good{0}, OK \\
-    3 kierunki naraz (3000 osób) & 2,1\,s & 49\,s & 0,5\,\% nieudanych, \good{0 przepełnień} \\
-    \bottomrule
-  \end{tabularx}\\[6pt]
-  \begin{itemize}
-    \item \textbf{ograniczamy}: tury per kierunek; \textbf{obsługujemy}: krótkie blokady, bramka (503 + Retry-After), cache, bez ORM w gorącej ścieżce
-    \item pomiar znalazł błąd: limit liczył ponowienia $\Rightarrow$ kaskada 429
-    \item przeciążenie: wolniej, ale spójnie $\Rightarrow$ tury per kierunek są konieczne
-  \end{itemize}
-\end{frame}
-
-% 9 ------------------------------------------------------------------ 7:00
-\begin{frame}[standout]
-  Dziękujemy -- pytania?\\[8pt]
-  \normalsize dalej: slajdy zapasowe (pozostałe diagramy)
-\end{frame}
-
-% --------------------------------------------------------------------------
-% Zapas: pokazywane tylko przy pytaniach.
-\appendix
-\section{Slajdy zapasowe}
-
-\fullimage{przypadki_uzycia_administracja.png}
-\fullimage{sekwencja_zapis.png}
-\fullimage{sekwencja_wypis_awans.png}
-\fullimage{sekwencja_tura.png}
-\fullimage{sekwencja_dziekanat.png}
-\fullimage{sekwencja_harmonogram.png}
-\fullimage{sekwencja_wymagania_import.png}
-\fullimage{sekwencja_logowanie.png}
-\fullimage{klasy_domena.png}
-\fullimage{klasy_serwisy.png}
-\fullimage{klasy_infrastruktura.png}
-
+% 9 ------------------------------------------------------------------ 5:50
 \begin{frame}{Uprawnienia ról i obsługa błędów}
   \begin{columns}[T]
     \begin{column}{0.5\textwidth}
@@ -188,11 +166,55 @@
         \item 409 -- odmowa z powodem
         \item 429 / 503 + Retry-After -- SPA ponawia
         \item 401 / 403 / 404 / 422
-        \item deadlock, \texttt{NOWAIT} -- ponawiane w transakcji
+        \item deadlock, \texttt{NOWAIT} -- ponawiane w transakcji (maks.\ 5)
       \end{itemize}
+      Każdy UC ma endpoint i kody błędów: \texttt{README.md} §4, §9.
     \end{column}
   \end{columns}
 \end{frame}
+
+% 10 ----------------------------------------------------------------- 6:30
+\begin{frame}{Weryfikacja: testy i duży ruch}
+  \footnotesize
+  \textbf{35 testów} (pytest, prawdziwy PostgreSQL 16) -- \good{wszystkie przechodzą}: reguły domeny, wyścig 30 osób o 10 miejsc, ścieżka \texttt{NOWAIT}, API i role, worker.\\[4pt]
+  \textbf{k6}, 20\,000 kont: każdy student przegląda katalog i zapisuje się na 6 przedmiotów (wykład + laboratorium).\\[4pt]
+  \begin{tabularx}{\textwidth}{@{}L>{\raggedleft}p{1.7cm}>{\raggedleft}p{1.9cm}>{\raggedleft\arraybackslash}p{3.2cm}@{}}
+    \toprule
+    \textbf{Scenariusz} & \textbf{p95 zapisu} & \textbf{sesja} & \textbf{ponowienia / spójność} \\
+    \midrule
+    1 kierunek (1000 osób) -- pierwsza wersja & 2,5\,s & 2\,min & \bad{22\,873}, OK \\
+    1 kierunek (1000 osób) -- po poprawkach & \good{1,9\,s} & \good{17\,s} & \good{0}, OK \\
+    3 kierunki naraz (3000 osób) & 2,1\,s & 49\,s & 0,5\,\% nieudanych, \good{0 przepełnień} \\
+    \bottomrule
+  \end{tabularx}\\[6pt]
+  \begin{itemize}
+    \item pomiar znalazł błąd: limit liczył ponowienia $\Rightarrow$ kaskada 429
+    \item przeciążenie: wolniej, ale spójnie $\Rightarrow$ tury per kierunek są konieczne
+  \end{itemize}
+\end{frame}
+
+% 11 ----------------------------------------------------------------- 6:35
+\begin{frame}[standout]
+  Dziękujemy -- pytania?\\[8pt]
+  \normalsize dalej: slajdy zapasowe (pozostałe diagramy)
+\end{frame}
+
+% --------------------------------------------------------------------------
+% Zapas: pokazywane tylko przy pytaniach.
+\appendix
+\section{Slajdy zapasowe}
+
+\fullimage{przypadki_uzycia_administracja.png}
+\fullimage{sekwencja_zapis.png}
+\fullimage{sekwencja_wypis_awans.png}
+\fullimage{sekwencja_tura.png}
+\fullimage{sekwencja_dziekanat.png}
+\fullimage{sekwencja_harmonogram.png}
+\fullimage{sekwencja_wymagania_import.png}
+\fullimage{sekwencja_logowanie.png}
+\fullimage{klasy_domena.png}
+\fullimage{klasy_serwisy.png}
+\fullimage{klasy_infrastruktura.png}
 
 \begin{frame}{Implementacja: ekrany}
   \begin{columns}[T]

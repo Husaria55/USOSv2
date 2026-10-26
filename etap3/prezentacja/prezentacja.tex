@@ -152,7 +152,7 @@
     UC11 {\tiny(dziekanat)} & \texttt{POST /api/admin/courses/\{c\}/prerequisites} & PREREQUISITE\_CYCLE \\
     UC12 {\tiny(dziekanat)} & \texttt{POST /api/admin/sections/\{s\}/meetings} & ROOM\_TOO\_SMALL, ROOM\_BUSY, LECTURER\_BUSY \\
     UC13 {\tiny(dziekanat)} & \texttt{PATCH /api/admin/sections/\{s\}} & BELOW\_ENROLLED, ROOM\_FULL \\
-    UC14 {\tiny(dziekanat)} & \texttt{POST /api/admin/enrollments} & CONFLICT, SAME\_KIND, ROOM\_FULL \\
+    UC14 {\tiny(dziekanat)} & \texttt{POST /api/admin/enrollments} & ALREADY\_ENROLLED, CONFLICT, SAME\_KIND, ROOM\_FULL \\
     UC16, 23 {\tiny(dziekanat)} & \texttt{POST /api/admin/rounds}, \texttt{…/\{r\}/open|close} & BAD\_DATES \\
     \bottomrule
   \end{tabularx}

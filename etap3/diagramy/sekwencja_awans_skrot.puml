@@ -19,12 +19,13 @@ loop dopóki jest wolne miejsce
   svc -> db : blokada B – FOR UPDATE NOWAIT
   alt B zajęty (55P03)
     db --> svc : ROLLBACK, ponowienie całości\n(B nie traci kolejki)
-  end
-  svc -> dom : check_student(B, WAITLIST)
-  alt warunki spełnione
-    svc -> db : zapis B, PROMOTED, powiadomienie
-  else kolizja / wymagania
-    svc -> db : SKIPPED z powodem, powiadomienie
+  else blokada uzyskana
+    svc -> dom : check_student(B, WAITLIST)
+    alt warunki spełnione
+      svc -> db : zapis B, licznik +1, PROMOTED,\npowiadomienie
+    else kolizja / wymagania
+      svc -> db : SKIPPED z powodem, powiadomienie
+    end
   end
 end
 svc -> db : COMMIT

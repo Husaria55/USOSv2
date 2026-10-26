@@ -30,6 +30,7 @@ zostają bez zmian jako historia. Różnice opisuje sekcja 1.
 | `prezentacja/prezentacja_krotka.tex` / `.pdf` | **Slajdy na 28.X (7 minut)** + slajdy zapasowe |
 | `prezentacja/prezentacja.tex` / `.pdf` | Pełna wersja slajdów (ok. 15 min) |
 | `diagramy/sekwencja_zapis_skrot`, `sekwencja_awans_skrot`, `klasy_skrot` | Uproszczone diagramy do krótkiej prezentacji |
+| `SKRYPT_7MIN.md` | **Skrypt wystąpienia (7 min)**: tekst, czasy, podział na osoby, źródła liczb |
 | `PREZENTACJA_OPIS.md` | Opis slajdów i przygotowanie do pytań |
 | `../backend/migrations/versions/0001_initial.sql` | Schemat bazy (źródło prawdy) |
 | `../IMPLEMENTACJA.md` | Uruchomienie, testy, wyniki obciążeniowe |
@@ -132,7 +133,7 @@ UC25 (przez worker) i UC26 wymaga zalogowania (401) i właściwej roli (403).
 | UC11 | Kursy i wymagania | dziekanat | `POST/PATCH /api/admin/courses`, `…/prerequisites` | → kurs / wymaganie | `DUPLICATE`, `PREREQUISITE_CYCLE`, `COURSE_NOT_FOUND` |
 | UC12 | Grupy, sale, harmonogram | dziekanat | `POST /api/admin/sections`, `…/meetings`, `…/lecturers`, `rooms` | sala ≥ limit grupy, brak kolizji sali i prowadzącego → grupa / termin / przypisanie | `BAD_TIME`, `ROOM_TOO_SMALL`, `ROOM_BUSY`, `LECTURER_BUSY`, `LECTURER_NOT_FOUND`, `DUPLICATE` |
 | UC13 | Zmień limit | dziekanat | `PATCH /api/admin/sections/{s}` | zapisani ≤ limit ≤ sala → nowy limit, UC9 | `BELOW_ENROLLED`, `ROOM_FULL` |
-| UC14 | Zapisz / wypisz (decyzja) | dziekanat | `POST /api/admin/enrollments`, `DELETE …/{st}/{s}` | bez tury i wymagań; kolizje i typ zawsze; pełna grupa → limit +1 (≤ sala) | `CONFLICT`, `SAME_KIND`, `ROOM_FULL`, `NOT_ENROLLED` |
+| UC14 | Zapisz / wypisz (decyzja) | dziekanat | `POST /api/admin/enrollments`, `DELETE …/{st}/{s}` | bez tury i wymagań; kolizje i typ zawsze; pełna grupa → limit +1 (≤ sala) | `ALREADY_ENROLLED`, `CONFLICT`, `SAME_KIND`, `ROOM_FULL`, `NOT_ENROLLED` |
 | UC15 | Importuj oceny | dziekanat | `POST /api/admin/grades/import` | CSV `index_no,course_code,term_code,grade` → liczba zaimportowanych, lista błędnych wierszy; ponowny import nadpisuje ocenę | `VALIDATION` |
 | UC16 | Otwórz / zamknij / przedłuż turę | dziekanat | `POST /api/admin/rounds/{r}/open|close`, `PATCH …/{r}` | zamknięcie → UC18 | `ROUND_NOT_FOUND`, `BAD_DATES` |
 | UC17 | Tura o zadanej godzinie | zegar (worker) | – | `opens_at` minął → `OPEN`; `closes_at` minął → `CLOSED` + UC18; tury zamkniętej ręcznie nie otwiera | – |
@@ -177,7 +178,7 @@ w etapie 2 i nadal obowiązują. Nowe w etapie 3:
 ![ER](diagramy/er.png)
 
 Pełna definicja: [`backend/migrations/versions/0001_initial.sql`](../backend/migrations/versions/0001_initial.sql)
-(16 tabel). Decyzje z etapu 2 (kurs ≠ grupa, terminy w `meeting`, licznik `enrolled_count`,
+(15 tabel). Decyzje z etapu 2 (kurs ≠ grupa, terminy w `meeting`, licznik `enrolled_count`,
 historia zamiast kasowania, kolejność listy = `id`, outbox) obowiązują. Nowe:
 - `program` – kierunek studenta (`app_user.program_id`) i tur (`round_program`).
 - `round_program (round_id, program_id)` – tura bez wierszy obejmuje wszystkich.

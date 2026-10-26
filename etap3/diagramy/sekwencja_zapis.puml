@@ -18,11 +18,11 @@ Student -> spa : „Zapisz” przy grupie
 spa -> api : POST {section_id}\nAuthorization: Bearer JWT
 api -> api : current_user(): dekoduj JWT,\nrola == STUDENT (inaczej 403)
 api -> traffic : rate_limiter.check(user_id)
-alt przekroczony limit operacji na minutę
+break przekroczony limit operacji na minutę
   traffic --> spa : 429 RATE_LIMITED, Retry-After
 end
 api -> traffic : write_gate.slot()
-alt brak wolnego slotu w ciągu 2 s
+break brak wolnego slotu w ciągu 2 s
   traffic -> traffic : refund(user_id)
   traffic --> spa : 503 OVERLOADED, Retry-After
   note right of spa : SPA ponawia sama\n(Retry-After × losowo 1–2)

@@ -20,13 +20,13 @@ svc -> ld : lock_student(A)
 ld -> db : SELECT ... FROM app_user ... FOR UPDATE
 svc -> ld : term_rounds(term_id, only_open=True)
 svc -> dom : student_can_enroll(rounds, program_id)
-alt tura kierunku zamknięta
+break tura kierunku zamknięta (ROLLBACK)
   api --> A : 409 ROUND_CLOSED
 end
 svc -> ld : lock_section(section_id)
 ld -> db : SELECT ... FROM section ... FOR UPDATE
 svc -> db : UPDATE enrollment SET status='DROPPED', dropped_at, dropped_by\nWHERE ... AND status='ENROLLED' RETURNING id
-alt brak aktywnego zapisu
+break brak aktywnego zapisu (ROLLBACK)
   api --> A : 409 NOT_ENROLLED
 end
 svc -> db : UPDATE section SET enrolled_count = enrolled_count - 1
@@ -34,7 +34,7 @@ svc -> db : UPDATE section SET enrolled_count = enrolled_count - 1
 group promote(section, target, term_id) – UC9
   loop dopóki enrolled_count < capacity
     svc -> db : SELECT id, student_id FROM waitlist_entry\nWHERE section_id=$1 AND status='WAITING' ORDER BY id LIMIT 1
-    alt lista pusta
+    break lista pusta
       svc -> svc : koniec pętli
     end
     svc -> ld : lock_student(B, nowait=True)
@@ -44,18 +44,19 @@ group promote(section, target, term_id) – UC9
       tx -> db : ROLLBACK (wypis też się cofa)
       tx -> tx : odczekaj 5–20 ms × 2^próba
       tx -> svc : ponów całe drop() – B nie traci kolejki
-    end
-    svc -> ld : student_state(B, term_id)
-    svc -> dom : check_student(state_B, target, WAITLIST)
-    alt B nie spełnia warunków (kolizja, wymagania, ma już grupę tego typu)
-      svc -> db : UPDATE waitlist_entry SET status='SKIPPED', skip_reason
-      svc -> db : INSERT INTO notification (SKIPPED, powód)
-    else spełnia
-      svc -> db : INSERT INTO enrollment (source='WAITLIST')
-      svc -> db : UPDATE waitlist_entry SET status='PROMOTED', enrollment_id
-      svc -> db : UPDATE section SET enrolled_count = enrolled_count + 1
-      svc -> db : wpisy B w innych grupach tego typu -> CANCELLED
-      svc -> db : INSERT INTO notification (PROMOTED)
+    else blokada B uzyskana
+      svc -> ld : student_state(B, term_id)
+      svc -> dom : check_student(state_B, target, WAITLIST)
+      alt B nie spełnia warunków (kolizja, wymagania, ma już grupę tego typu)
+        svc -> db : UPDATE waitlist_entry SET status='SKIPPED', skip_reason
+        svc -> db : INSERT INTO notification (SKIPPED, powód)
+      else spełnia
+        svc -> db : INSERT INTO enrollment (source='WAITLIST')
+        svc -> db : UPDATE waitlist_entry SET status='PROMOTED', enrollment_id
+        svc -> db : UPDATE section SET enrolled_count = enrolled_count + 1
+        svc -> db : wpisy B w innych grupach tego typu -> CANCELLED
+        svc -> db : INSERT INTO notification (PROMOTED)
+      end
     end
   end
 end
