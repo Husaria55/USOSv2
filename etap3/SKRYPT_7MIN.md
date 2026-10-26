@@ -4,7 +4,7 @@ Slajdy: `prezentacja/prezentacja_krotka.pdf` (12 slajdów: tytuł, 10 slajdów t
 dalej slajdy zapasowe). Ten plik jest **jedynym źródłem tekstu** do wystąpienia –
 `PREZENTACJA_OPIS.md` tylko do niego odsyła.
 
-- **Mowa: 545 słów** (liczone `wc -w` na samych cytatach poniżej; Kamil 191, Bartosz 162,
+- **Mowa: 550 słów** (liczone `wc -w` na samych cytatach poniżej; Kamil 194, Bartosz 164,
   Krzysztof 192). Przy ok. 120 słowach na minutę to ok. 4:30 samej mowy. Z pauzami, wskazywaniem kroków na diagramach i zmianami osób wychodzi
   ok. **6:35**, więc zostaje ok. 25 s zapasu do limitu 7:00.
 - **Podział:** Kamil ok. 2:15 (slajdy 0–3), Bartosz ok. 2:05 (4–6), Krzysztof ok. 2:15 (7–11).
@@ -45,14 +45,15 @@ Wskazać UC2, potem strzałki `<<include>>` i `<<extend>>`.
 > Przypadki użycia. Mamy ich dwadzieścia osiem, od UC0 do UC27, na dwóch diagramach; tu jest
 > część studenta. Główny jest UC2, zapis do grupy. Zawsze dołącza sprawdzenie wymagań wstępnych,
 > kolizji i uprawnienia, czyli czy trwa tura kierunku studenta. Gdy brak miejsc, rozszerza go
-> dopisanie do listy oczekujących. Każdy przypadek ma w dokumentacji endpoint i listę kodów błędów.
+> dopisanie do listy oczekujących. W dokumentacji każdy przypadek wywoływany przez użytkownika ma
+> endpoint i listę kodów błędów.
 
 ## Slajd 4 – Sekwencja: zapis do grupy · Bartosz · do 3:05
 
 Wskazywać kroki 2, 4, ramkę `break` (7) i krok 8.
 
 > Sekwencja zapisu. Najpierw kontrola ruchu: limit operacji na studenta i bramka; przy nadmiarze
-> API od razu odpowiada 503 z informacją, kiedy ponowić. W kroku czwartym blokujemy wiersz
+> API po najwyżej dwóch sekundach odpowiada 503 z informacją, kiedy ponowić. W kroku czwartym blokujemy wiersz
 > studenta i sprawdzamy reguły zależne od jego planu. Odmowa kończy operację: wycofanie i kod 409
 > z powodem, na przykład kolizją z konkretną grupą. Dopiero w kroku ósmym blokujemy grupę
 > i trzymamy tę blokadę krótko: decyzja o miejscu i zapis albo lista oczekujących.

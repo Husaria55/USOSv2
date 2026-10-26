@@ -127,7 +127,7 @@
     logowanie & UC0 & bcrypt w wątku, JWT 12\,h, rola sprawdzana bez zapytania do bazy \\
     \bottomrule
   \end{tabularx}\\[8pt]
-  Każdy błąd biznesowy kończy operację (\texttt{break}): \texttt{ROLLBACK} i odpowiedź z kodem.
+  Każdy błąd biznesowy kończy operację (ramka \texttt{break} albo gałąź \texttt{alt}): \texttt{ROLLBACK} i odpowiedź z kodem.
   Pełne diagramy: slajdy zapasowe i \texttt{etap3/README.md}, sekcja 5.
 \end{frame}
 
@@ -168,7 +168,7 @@
         \item 401 / 403 / 404 / 422
         \item deadlock, \texttt{NOWAIT} -- ponawiane w transakcji (maks.\ 5)
       \end{itemize}
-      Każdy UC ma endpoint i kody błędów: \texttt{README.md} §4, §9.
+      Endpointy i kody błędów wszystkich UC: \texttt{README.md} §4, §9.
     \end{column}
   \end{columns}
 \end{frame}
