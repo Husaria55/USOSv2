@@ -25,12 +25,13 @@ package "app/api" {
     + GET /sections/{s}/roster  (UC10)
   }
   class AdminRouter <<FastAPI router /api/admin>> {
-    + POST programs, terms, rooms, users  (UC24)
+    + POST programs, terms; GET/POST rooms, users  (UC24)
     + GET/POST/PATCH courses, POST/DELETE prerequisites  (UC11)
     + POST sections, PATCH sections/{s}  (UC12, UC13)
-    + POST sections/{s}/meetings, lecturers  (UC12)
+    + POST/DELETE sections/{s}/meetings | lecturers, DELETE meetings/{m}  (UC12)
     + POST enrollments, DELETE enrollments/{st}/{s}  (UC14)
-    + GET/POST/PATCH rounds, POST rounds/{r}/open|close  (UC16, UC23)
+    + GET students/{st}/terms/{t}/plan  (UC14)
+    + GET terms/{t}/rounds, POST/PATCH rounds, POST rounds/{r}/open|close  (UC16, UC23)
     + POST grades/import  (UC15)
     + GET audit  (UC25)
   }
@@ -50,6 +51,8 @@ package "app/api" {
     + id: int
     + role: str
   }
+  class Unauthorized <<api/deps.py>>
+  class BadCredentials <<services/users.py>>
 }
 
 package "app/traffic.py" {
@@ -70,6 +73,8 @@ package "app/traffic.py" {
     + rejected: int
     + slot(): AsyncContextManager  {raises Overloaded 503}
   }
+  class TooManyRequests
+  class Overloaded
 }
 
 package "app/db.py, app/security.py" {
@@ -100,8 +105,6 @@ package "app/errors.py" {
   class Conflict {
     + from_refusal(r: Refusal): Conflict
   }
-  class TooManyRequests
-  class Overloaded
 }
 
 class worker <<process>> {
@@ -117,6 +120,12 @@ Forbidden -|> AppError
 Conflict -|> AppError
 TooManyRequests -|> AppError
 Overloaded -|> AppError
+Unauthorized -|> AppError
+BadCredentials -|> AppError
+RateLimiter ..> TooManyRequests
+Gate ..> Overloaded
+deps ..> Unauthorized
+AuthRouter ..> BadCredentials
 StudentRouter ..> deps
 AdminRouter ..> deps
 LecturerRouter ..> deps

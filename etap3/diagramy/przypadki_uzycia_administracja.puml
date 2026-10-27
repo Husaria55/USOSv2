@@ -9,9 +9,10 @@ actor "Prowadzący" as P
 actor "Zegar systemowy\n(worker)" as Z
 
 rectangle "System zapisów" {
-  usecase "//Operacja pracownika//" as OPP
   usecase "UC0: Uwierzytelnij się" as UC0
-  usecase "UC10: Przeglądaj listy studentów\nswoich grup (eksport CSV)" as UC10
+  usecase "UC1: Przeglądaj katalog\nkursów i grup" as UC1
+  usecase "UC21: Przeglądaj\npowiadomienia" as UC21
+  usecase "UC10: Przeglądaj listy studentów grup\n(prowadzący – tylko swoich; eksport CSV)" as UC10
   usecase "UC11: Zarządzaj kursami\ni wymaganiami wstępnymi" as UC11
   usecase "UC12: Zarządzaj grupami,\nsalami i harmonogramem" as UC12
   usecase UC13 as "UC13: Zmień limit miejsc w grupie
@@ -36,7 +37,13 @@ zwolnione miejsce"
   usecase "UC9: Awansuj pierwszego\nz listy oczekujących" as UC9
 }
 
+P -- UC0
+A -- UC0
+P -- UC1
+P -- UC21
 P -- UC10
+A -- UC1
+A -- UC21
 A -- UC10
 A -- UC11
 A -- UC12
@@ -51,17 +58,6 @@ Z -- UC17
 Z -- UC25
 Z -- UC26
 
-UC10 --|> OPP
-UC11 --|> OPP
-UC12 --|> OPP
-UC13 --|> OPP
-UC14 --|> OPP
-UC15 --|> OPP
-UC16 --|> OPP
-UC23 --|> OPP
-UC24 --|> OPP
-UC25 --|> OPP
-OPP ..> UC0 : <<include>>
 
 UC11 ..> UC27 : <<include>>
 UC12 ..> UC4 : <<include>>\n(sala, prowadzący)
@@ -71,6 +67,11 @@ UC9 ..> UC14 : <<extend>>
 UC16 ..> UC18 : <<include>>\n(przy zamknięciu)
 UC17 ..> UC18 : <<include>>\n(przy zamknięciu)
 
+note right of UC0
+  Przypadki prowadzącego i dziekanatu
+  wymagają zalogowania i właściwej roli;
+  zegar (worker) działa bez logowania.
+end note
 note bottom of UC23
   Np. kolejny kierunek co 30 min:
   w szczycie zapisuje się ~1000 osób

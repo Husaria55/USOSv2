@@ -108,8 +108,9 @@ osobny proces workera i PostgreSQL jako jedyne źródło prawdy.
 
 ![przypadki użycia – administracja](diagramy/przypadki_uzycia_administracja.png)
 
-Notacja jak w etapie 2: abstrakcyjne *Operacja studenta / pracownika* (uogólnienie, każda
-`<<include>>` UC0), `<<include>>` – zawsze, `<<extend>>` – warunkowo w nazwanym punkcie.
+Notacja: UC0 (logowanie) jest połączony z każdym aktorem-osobą – pozostałe przypadki wymagają
+zalogowania i właściwej roli; `<<include>>` – zawsze, `<<extend>>` – warunkowo w nazwanym punkcie
+(np. UC9 rozszerza UC6, UC13 i UC14, gdy zwolni się miejsce, a ktoś czeka).
 Nowe przypadki: UC19–UC27.
 
 ### Wszystkie przypadki użycia
@@ -131,7 +132,7 @@ UC25 (przez worker) i UC26 wymaga zalogowania (401) i właściwej roli (403).
 | UC9 | Awansuj z listy | system | (w UC6, UC13, UC14) | wolne miejsce → kolejni oczekujący `PROMOTED` albo `SKIPPED` z powodem; powiadomienia | (ponowienie przy 55P03) |
 | UC10 | Listy studentów grupy | prowadzący, dziekanat | `GET /api/sections/{s}/roster` | prowadzący tylko swoich grup → zapisani i oczekujący (kolejność); eksport CSV w SPA | `FORBIDDEN`, `SECTION_NOT_FOUND` |
 | UC11 | Kursy i wymagania | dziekanat | `POST/PATCH /api/admin/courses`, `…/prerequisites` | → kurs / wymaganie | `DUPLICATE`, `PREREQUISITE_CYCLE`, `COURSE_NOT_FOUND` |
-| UC12 | Grupy, sale, harmonogram | dziekanat | `POST /api/admin/sections`, `…/meetings`, `…/lecturers`, `rooms` | sala ≥ limit grupy, brak kolizji sali i prowadzącego → grupa / termin / przypisanie | `BAD_TIME`, `ROOM_TOO_SMALL`, `ROOM_BUSY`, `LECTURER_BUSY`, `LECTURER_NOT_FOUND`, `DUPLICATE` |
+| UC12 | Grupy, sale, harmonogram | dziekanat | `POST /api/admin/sections`, `…/meetings`, `…/lecturers`, `rooms` | sala ≥ limit grupy, brak kolizji sali i prowadzącego → grupa / termin / przypisanie | `BAD_TIME`, `ROOM_TOO_SMALL`, `ROOM_BUSY`, `LECTURER_BUSY`, `SECTION_NOT_FOUND`, `ROOM_NOT_FOUND`, `LECTURER_NOT_FOUND`, `DUPLICATE` |
 | UC13 | Zmień limit | dziekanat | `PATCH /api/admin/sections/{s}` | zapisani ≤ limit ≤ sala → nowy limit, UC9 | `BELOW_ENROLLED`, `ROOM_FULL` |
 | UC14 | Zapisz / wypisz (decyzja) | dziekanat | `POST /api/admin/enrollments`, `DELETE …/{st}/{s}` | bez tury i wymagań; kolizje i typ zawsze; pełna grupa → limit +1 (≤ sala) | `ALREADY_ENROLLED`, `CONFLICT`, `SAME_KIND`, `ROOM_FULL`, `NOT_ENROLLED` |
 | UC15 | Importuj oceny | dziekanat | `POST /api/admin/grades/import` | CSV `index_no,course_code,term_code,grade` → liczba zaimportowanych, lista błędnych wierszy; ponowny import nadpisuje ocenę | `VALIDATION` |

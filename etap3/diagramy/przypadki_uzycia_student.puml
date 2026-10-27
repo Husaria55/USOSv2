@@ -1,13 +1,12 @@
 @startuml przypadki_uzycia_student
 !pragma layout smetana
-left to right direction
+top to bottom direction
 title Przypadki użycia (1/2) – student i zapisy (etap 3)
 skinparam shadowing false
 
 actor "Student" as S
 
 rectangle "System zapisów" {
-  usecase "//Operacja studenta//" as OPS
   usecase "UC0: Uwierzytelnij się" as UC0
   usecase "UC1: Przeglądaj katalog\nkursów i grup" as UC1
   usecase UC2 as "UC2: Zapisz się do grupy
@@ -17,7 +16,10 @@ brak wolnych miejsc"
   usecase "UC3: Sprawdź wymagania\nwstępne" as UC3
   usecase "UC4: Wykryj kolizję\nw planie" as UC4
   usecase "UC5: Dopisz do listy\noczekujących" as UC5
-  usecase "UC6: Wypisz się z grupy" as UC6
+  usecase UC6 as "UC6: Wypisz się z grupy
+--
+extension points:
+zwolnione miejsce"
   usecase "UC7: Zrezygnuj z listy\noczekujących" as UC7
   usecase "UC8: Przeglądaj swój\nplan zajęć" as UC8
   usecase "UC9: Awansuj pierwszego\nz listy oczekujących" as UC9
@@ -27,6 +29,7 @@ brak wolnych miejsc"
   usecase "UC22: Sprawdź uprawnienie\ndo zapisu (tura kierunku)" as UC22
 }
 
+S -- UC0
 S -- UC1
 S -- UC2
 S -- UC6
@@ -36,22 +39,13 @@ S -- UC19
 S -- UC20
 S -- UC21
 
-UC1 --|> OPS
-UC2 --|> OPS
-UC6 --|> OPS
-UC7 --|> OPS
-UC8 --|> OPS
-UC19 --|> OPS
-UC20 --|> OPS
-UC21 --|> OPS
-OPS ..> UC0 : <<include>>
 
 UC2 ..> UC22 : <<include>>
 UC2 ..> UC3 : <<include>>
 UC2 ..> UC4 : <<include>>
 UC5 ..> UC2 : <<extend>>
 UC6 ..> UC22 : <<include>>
-UC6 ..> UC9 : <<include>>
+UC9 ..> UC6 : <<extend>>
 UC9 ..> UC3 : <<include>>
 UC9 ..> UC4 : <<include>>
 UC19 ..> UC3 : <<include>>
@@ -63,9 +57,8 @@ note right of UC22
   (round_program; tura bez kierunków
   obejmuje wszystkich).
 end note
-note right of UC19
-  Podgląd liczony tymi samymi regułami
-  co zapis, ale bez blokad. Ostateczną
-  decyzję podejmuje transakcja UC2.
+note left of UC19
+  Podgląd tymi samymi regułami co zapis,
+  ale bez blokad; decyduje transakcja UC2.
 end note
 @enduml

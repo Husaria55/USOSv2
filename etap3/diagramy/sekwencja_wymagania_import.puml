@@ -18,12 +18,14 @@ cat -> db : pg_advisory_xact_lock(1, 0)
 note right of db : zmiany wymagań są serializowane –\ndwa równoległe A->B i B->A nie przejdą
 cat -> db : SELECT course_id, required_course_id FROM course_prerequisite
 cat -> dom : creates_cycle(graf, course_id, required_id)
-alt cykl (kurs pośrednio wymagałby sam siebie)
+break cykl (kurs pośrednio wymagałby sam siebie) (ROLLBACK)
   api --> Dziekanat : 409 PREREQUISITE_CYCLE
-else brak cyklu
-  cat -> db : INSERT INTO course_prerequisite
-  api --> Dziekanat : 200
 end
+cat -> db : INSERT INTO course_prerequisite (SAVEPOINT)
+break wymaganie już jest albo kurs nie istnieje – IntegrityError (ROLLBACK)
+  api --> Dziekanat : 409 DUPLICATE
+end
+api --> Dziekanat : 200
 
 == Import ocen (POST /api/admin/grades/import) ==
 Dziekanat -> api : {csv: "index_no,course_code,term_code,grade ..."}

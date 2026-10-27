@@ -79,6 +79,9 @@ class Violation <<dataclass>> {
 }
 
 class QueryService <<service, read-only>> {
+  + terms(s): list[dict]
+  + programs(s): list[dict]
+  + rooms(s): list[dict]
   + course_list(s, term_id: int | None, q: str | None, limit: int, offset: int): list[dict]
   + course_detail(s, course_id: int, term_id: int | None): dict
   + student_course_status(s, student_id: int, course_id: int, term_id: int): dict
@@ -104,6 +107,11 @@ class Loaders <<data access>> {
   + waitlist_positions(s, student_id: int, section_ids?): dict[int, int]
   + section_labels(s, section_ids: list[int]): dict[int, str]
   + forget_targets(): None
+  + student_plan(s, student_id: int, term_id: int): tuple[PlanEntry, ...]
+  + student_waiting(s, student_id: int, term_id: int): list[WaitingEntry]
+  + passed_courses(s, student_id: int): frozenset[int]
+  + slots_by_section(s, section_ids): dict[int, tuple[Slot, ...]]
+  + pg(s): asyncpg.Connection
 }
 class LockedStudent <<dataclass>> {
   + id: int

@@ -32,10 +32,12 @@ class SeatState {
   + enrolled_count: int
   + waiting_count: int
   + waitlist_limit: int
+  + room_seats: int?
 }
 class Refusal {
   + code: str
   + message: str
+  + details: tuple[str]
 }
 enum Mode {
   DIRECT
