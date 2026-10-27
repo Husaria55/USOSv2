@@ -30,7 +30,6 @@ zostają bez zmian jako historia. Różnice opisuje sekcja 1.
 | `prezentacja/prezentacja_krotka.tex` / `.pdf` | **Slajdy na 28.X (7 minut)** + slajdy zapasowe |
 | `prezentacja/prezentacja.tex` / `.pdf` | Pełna wersja slajdów (ok. 15 min) |
 | `diagramy/sekwencja_zapis_skrot`, `sekwencja_awans_skrot`, `klasy_skrot` | Uproszczone diagramy do krótkiej prezentacji |
-| `SKRYPT_7MIN.md` | **Skrypt wystąpienia (7 min)**: tekst, czasy, podział na osoby, źródła liczb |
 | `PREZENTACJA_OPIS.md` | Opis slajdów i przygotowanie do pytań |
 | `../backend/migrations/versions/0001_initial.sql` | Schemat bazy (źródło prawdy) |
 | `../IMPLEMENTACJA.md` | Uruchomienie, testy, wyniki obciążeniowe |
