@@ -11,11 +11,7 @@ Wymagania etapu (z opisu zadania):
 
 Kompletny projekt składa się z: architektury, stosu technologicznego, diagramów UML (przypadki
 użycia, sekwencje), diagramu ER i diagramów struktur (klasy, komponenty). Ten dokument zawiera
-wszystkie te elementy. Projekt jest zweryfikowany działającą implementacją (`backend/`,
-`frontend/`) – diagramy klas i sekwencji odpowiadają kodowi, a nie są szkicem do napisania.
-
-Materiały etapu 2 (`../README.md`, `../schemat.sql`, `../diagramy/`, `../prezentacja/`)
-zostają bez zmian jako historia. Różnice opisuje sekcja 1.
+wszystkie te elementy. 
 
 ## Zawartość
 
