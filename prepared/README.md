@@ -31,8 +31,6 @@ zostają bez zmian jako historia. Różnice opisuje sekcja 1.
 | `prezentacja/prezentacja.tex` / `.pdf` | Pełna wersja slajdów (ok. 15 min) |
 | `diagramy/sekwencja_zapis_skrot`, `sekwencja_awans_skrot`, `klasy_skrot` | Uproszczone diagramy do krótkiej prezentacji |
 | `PREZENTACJA_OPIS.md` | Opis slajdów i przygotowanie do pytań |
-| `../backend/migrations/versions/0001_initial.sql` | Schemat bazy (źródło prawdy) |
-| `../IMPLEMENTACJA.md` | Uruchomienie, testy, wyniki obciążeniowe |
 
 ---
 
