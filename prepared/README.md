@@ -23,10 +23,8 @@ wszystkie te elementy.
 | `diagramy/sekwencja_*.puml` / `.png` | 7 diagramów sekwencji (sekcja 5) |
 | `diagramy/klasy_domena.puml`, `klasy_serwisy.puml`, `klasy_infrastruktura.puml` / `.png` | Diagramy klas (sekcja 7) |
 | `diagramy/er.py` → `er.tex` / `.pdf` / `.png` | Diagram ER (TikZ, generowany skryptem) |
-| `prezentacja/prezentacja_krotka.tex` / `.pdf` | **Slajdy na 28.X (7 minut)** + slajdy zapasowe |
-| `prezentacja/prezentacja.tex` / `.pdf` | Pełna wersja slajdów (ok. 15 min) |
+| `prezentacja_krotka.pdf` | **Slajdy na 28.X (7 minut)** + slajdy zapasowe |
 | `diagramy/sekwencja_zapis_skrot`, `sekwencja_awans_skrot`, `klasy_skrot` | Uproszczone diagramy do krótkiej prezentacji |
-| `PREZENTACJA_OPIS.md` | Opis slajdów i przygotowanie do pytań |
 
 ---
 
