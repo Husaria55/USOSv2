@@ -1,0 +1,8 @@
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+skinparam noteBackgroundColor #E8F5E9
+skinparam noteBorderColor #1B7F3B
+legend bottom right
+  <color:#1B7F3B>**zielone**</color> = zmiana / nowy krok w etapie 5
+  (porównaj z diagramem z otrzymanego projektu)
+endlegend

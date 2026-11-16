@@ -1,0 +1,83 @@
+% Komponenty - odtworzony diagram otrzymanego projektu + zmiany etapu 5.
+\documentclass[tikz,border=8pt]{standalone}
+\usepackage[sfdefault]{FiraSans}
+\usetikzlibrary{arrows.meta,positioning,calc,shapes.geometric,fit,backgrounds}
+\begin{document}
+\begin{tikzpicture}[
+  font=\sffamily\bfseries\large, >={Stealth[length=3mm]},
+  comp/.style={draw=black!70, rounded corners=3pt, line width=1pt, fill=white, minimum width=4.6cm, minimum height=1.2cm, align=center},
+  new/.style={comp, draw=green!50!black, fill=green!12, line width=1.6pt},
+  chg/.style={comp, draw=orange!90!black, fill=yellow!22, line width=2pt, dash pattern=on 6pt off 3pt},
+  db/.style={cylinder, shape border rotate=90, aspect=0.25, draw=black!70, line width=1pt, fill=white, minimum width=3.6cm, minimum height=2.1cm, align=center},
+  layer/.style={rounded corners=6pt, line width=1.2pt, inner sep=12pt},
+  ltitle/.style={font=\sffamily\bfseries\large, text=black!75, anchor=north west},
+  lbl/.style={font=\sffamily\itshape\normalsize, text=black!60, fill=white, inner sep=1pt},
+  use/.style={->, draw=black!55, dashed, line width=0.9pt},
+]
+% górny rząd
+\node[chg] (web) at (-8,10) {Aplikacja webowa\\[-1pt]{\mdseries\normalsize (React) + widok Preferencje}};
+\node[chg] (api) at (0,10) {API REST \&\\SSOAuthService};
+\node[comp, fill=blue!6] (sso) at (8,10) {SSO uczelni\\[-1pt]{\mdseries\normalsize (OpenID Connect)}};
+\begin{scope}[on background layer]
+  \node[layer, draw=purple!60!black, fill=purple!5, fit=(api), inner ysep=22pt] (acc) {};
+\end{scope}
+\node[ltitle] at ([xshift=4pt,yshift=-2pt]acc.north west) {Warstwa dostępu};
+\draw[->, line width=1pt] (web) -- (api);
+\draw[<->, line width=1pt] (api) -- (sso);
+
+% warstwa serwisów
+\node[chg] (cat) at (-7,5.8) {CatalogService};
+\node[chg] (enr) at (-0.5,5.8) {EnrollmentService};
+\node[chg] (wl) at (6,5.8) {WaitingListService};
+\node[new] (pref) at (-7,3.4) {PreferenceService};
+\node[new] (alloc) at (6,3.4) {AllocationService};
+\node[comp] (audit) at (-7,1) {AuditLogService\\[-1pt]{\mdseries\normalsize log\_action -- wołają wszystkie}};
+\node[chg] (rule) at (-0.5,1) {EnrollmentRuleEngine};
+\node[new] (algo) at (6,1) {PreferenceAllocator\\[-1pt]{\mdseries\normalsize (domena, algorytm)}};
+\begin{scope}[on background layer]
+  \node[layer, draw=green!55!black, fill=green!4, fit=(cat)(wl)(audit)(algo), inner ysep=24pt] (svc) {};
+\end{scope}
+\node[ltitle] at ([xshift=4pt,yshift=-2pt]svc.north west) {Warstwa serwisów};
+\draw[->, line width=1pt] (acc.south) -- node[lbl] {deleguje} (svc.north -| acc.south);
+
+\draw[->, draw=black!60, line width=1pt] (enr) -- node[lbl, pos=0.35] {check\_rules} (rule);
+\draw[->, draw=black!60, line width=1pt] (wl.south west) -- (rule.north east);
+\draw[->, draw=green!45!black, line width=1.2pt] (pref.east) -- (rule.north west);
+\draw[->, draw=orange!85!black, line width=1.2pt, dashed] (cat.south east) -- node[lbl, sloped, pos=0.45] {plany zapisanych} ([xshift=8pt]rule.north west);
+\draw[->, draw=green!45!black, line width=1.2pt] (alloc) -- node[lbl] {allocate()} (algo);
+\draw[->, draw=green!45!black, line width=1.2pt] (alloc.south west) -- node[lbl, sloped] {dane reguł} (rule.east);
+
+% warstwa danych
+\node[db, draw=orange!90!black, fill=yellow!22, line width=2pt, dash pattern=on 6pt off 3pt] (pg) at (-8,-4) {Baza danych\\(PostgreSQL)};
+\node[db] (redis) at (-2.5,-4) {Cache\\(Redis)};
+\begin{scope}[on background layer]
+  \node[layer, draw=cyan!55!black, fill=cyan!4, fit=(pg)(redis), inner ysep=20pt] (data) {};
+\end{scope}
+\node[ltitle] at ([xshift=4pt,yshift=-2pt]data.north west) {Warstwa danych};
+\draw[<->, line width=1pt] ([xshift=1.5cm]svc.south west) -- node[lbl] {SQL / Redis} ([xshift=1.5cm]svc.south west |- data.north);
+
+% asynchronia
+\node[db] (q) at (4,-3.6) {Kolejka zadań\\(Celery + Redis)};
+\node[chg, minimum width=3.6cm] (w) at (4,-7.4) {Workery};
+\node[new, minimum width=3.6cm] (beat) at (9,-3.6) {Celery Beat\\[-1pt]{\mdseries\normalsize co 1 / 5 min}};
+\begin{scope}[on background layer]
+  \node[layer, draw=brown!70!black, fill=orange!4, fit=(q)(w)(beat), inner ysep=20pt] (async) {};
+\end{scope}
+\node[ltitle] at ([xshift=4pt,yshift=-2pt]async.north west) {Asynchronia};
+\draw[->, line width=1pt] (svc.south -| q) -- node[lbl, left=2pt] {SEAT\_FREED} (q.north);
+\draw[->, line width=1pt] (q) -- (w);
+\draw[->, draw=green!45!black, line width=1.4pt] (beat) -- node[lbl, above=2pt] {zadania} (q);
+\draw[->, line width=1pt] (w.west) -| (redis.south);
+\draw[->, line width=1pt] (w.east) -- ++(7.4,0) |- node[lbl, pos=0.12, rotate=90] {on\_seat\_freed} (wl.east);
+\draw[->, draw=green!45!black, line width=1.4pt] ([yshift=-0.3cm]w.east) -- ++(6.2,0) |- node[lbl, pos=0.2, rotate=90, text=green!35!black] {run\_allocation (PREVIEW / FINAL)} (alloc.east);
+
+% legenda
+\begin{scope}[shift={(-10.4,-10.2)}, font=\sffamily\normalsize]
+  \node[anchor=west, draw=green!50!black, fill=green!12, line width=1.4pt, minimum width=0.8cm, minimum height=0.45cm] at (0,0) {};
+  \node[anchor=west] at (1,0) {nowy komponent (etap 5)};
+  \node[anchor=west, draw=orange!90!black, fill=yellow!22, line width=1.6pt, dash pattern=on 4pt off 2pt, minimum width=0.8cm, minimum height=0.45cm] at (6.4,0) {};
+  \node[anchor=west] at (7.4,0) {komponent zmieniony};
+  \node[anchor=west, text=black!65] at (12.6,0) {pozostałe -- jak w otrzymanym projekcie};
+\end{scope}
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,1112 @@
+\documentclass[aspectratio=169, 10pt, xcolor=table]{beamer}
+
+\usepackage{iftex}
+\ifPDFTeX
+    \usepackage[utf8]{inputenc}
+    \usepackage[T1]{fontenc}
+    \usepackage[polish]{babel}
+    \usepackage{lmodern}
+    \renewcommand{\familydefault}{\sfdefault}
+\else
+    \usepackage{fontspec}
+    \usepackage[polish, english, bidi=basic, provide=*]{babel}
+    \babelprovide[import, onchar=ids fonts]{polish}
+    \babelprovide[import, onchar=ids fonts]{english}
+    \babelfont{rm}{Noto Sans}
+    \babelfont{sf}{Noto Sans}
+\fi
+
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{colortbl}
+
+% Motyw i płaska, nowoczesna stylistyka
+\usetheme{Madrid}
+\useinnertheme{rectangles}
+\usefonttheme{professionalfonts}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{blocks}[rounded][shadow=false]
+\setbeamertemplate{itemize items}[square]
+\setbeamertemplate{enumerate items}[square]
+\setbeamertemplate{section in toc}[square]
+\setbeamertemplate{caption}[numbered]
+
+% Zmniejszenie marginesów bocznych dla lepszego wykorzystania panoramy 16:9
+\setbeamersize{text margin left=0.7cm, text margin right=0.7cm}
+
+% Nowoczesna paleta barw
+\definecolor{NavyPrimary}{HTML}{0F172A}
+\definecolor{BlueBrand}{HTML}{1E3A8A}
+\definecolor{BlueAccent}{HTML}{2563EB}
+\definecolor{SlateDark}{HTML}{1E293B}
+\definecolor{SlateMuted}{HTML}{475569}
+\definecolor{RowBg}{HTML}{F8FAFC}
+\definecolor{HeaderBg}{HTML}{E2E8F0}
+\definecolor{BlockBg}{HTML}{F1F5F9}
+\definecolor{TealHeader}{HTML}{0F766E}
+\definecolor{TealBg}{HTML}{F0FDFA}
+\definecolor{AlertHeader}{HTML}{B91C1C}
+\definecolor{AlertBg}{HTML}{FEF2F2}
+
+\setbeamercolor{palette primary}{bg=NavyPrimary, fg=white}
+\setbeamercolor{palette secondary}{bg=BlueBrand, fg=white}
+\setbeamercolor{palette tertiary}{bg=BlueAccent, fg=white}
+\setbeamercolor{structure}{fg=BlueBrand}
+\setbeamercolor{normal text}{fg=SlateDark, bg=white}
+\setbeamercolor{title}{bg=NavyPrimary, fg=white}
+\setbeamercolor{frametitle}{bg=NavyPrimary, fg=white}
+\setbeamercolor{framesubtitle}{fg=HeaderBg}
+
+\setbeamercolor{block title}{bg=BlueBrand, fg=white}
+\setbeamercolor{block body}{bg=BlockBg, fg=SlateDark}
+\setbeamercolor{block title alerted}{bg=AlertHeader, fg=white}
+\setbeamercolor{block body alerted}{bg=AlertBg, fg=SlateDark}
+\setbeamercolor{block title example}{bg=TealHeader, fg=white}
+\setbeamercolor{block body example}{bg=TealBg, fg=SlateDark}
+
+% Hierarchia typograficzna
+\setbeamerfont{title}{size=\LARGE, series=\bfseries}
+\setbeamerfont{subtitle}{size=\normalsize, series=\mdseries}
+\setbeamerfont{frametitle}{size=\large, series=\bfseries}
+\setbeamerfont{framesubtitle}{size=\footnotesize, series=\mdseries}
+\setbeamerfont{block title}{size=\footnotesize, series=\bfseries}
+\setbeamerfont{footline}{size=\tiny}
+
+% Konfiguracja tabel (zmniejszony domyślny arraystretch i tabcolsep)
+\renewcommand{\arraystretch}{1.18}
+\setlength{\tabcolsep}{5pt}
+\arrayrulecolor{BlueBrand}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{M}[1]{>{\raggedright\arraybackslash\ttfamily\color{BlueBrand}}p{#1}}
+\newcolumntype{T}[1]{>{\raggedright\arraybackslash\ttfamily\color{TealHeader}}p{#1}}
+\newcolumntype{U}[1]{>{\raggedright\arraybackslash\bfseries\color{BlueBrand}}p{#1}}
+
+% Makro do slajdów z pełnoekranowym diagramem (bez wychodzenia poza textwidth)
+\newcommand{\diagramframe}[2]{
+\begin{frame}[plain]
+    \vspace{0.15cm}
+    \noindent\colorbox{NavyPrimary}{%
+        \parbox{\dimexpr\textwidth-2\fboxsep\relax}{%
+            \vspace{2pt}\hspace{4pt}{\normalsize\bfseries\textcolor{white}{#1}}\vspace{2pt}%
+        }%
+    }
+    \vfill
+    \centering
+    \IfFileExists{#2}{%
+        \makebox[\textwidth][c]{%
+            \includegraphics[width=0.98\textwidth, height=0.82\textheight, keepaspectratio]{#2}%
+        }%
+    }{%
+        \fcolorbox{BlueBrand}{BlockBg}{%
+            \parbox[c][0.68\textheight][c]{0.90\textwidth}{%
+                \centering
+                {\large \textbf{\textcolor{BlueBrand}{Miejsce na diagram: \texttt{\detokenize{#2}}}}}\par\vspace{8pt}
+                {\footnotesize \textcolor{SlateMuted}{Schemat wizualny pliku \texttt{\detokenize{#2}} (wyeksportowany w układzie poziomym 16:9 / PDF / PNG).}}
+            }%
+        }%
+    }
+    \vfill
+\end{frame}
+}
+
+% Dane tytułowe (puste nawiasy kwadratowe usuwają dane ze stopki)
+\title[System zapisu na zajęcia]{System zapisu na zajęcia}
+\subtitle{Projekt wstępny systemu (Etap 3) -- Inżynieria Oprogramowania}
+\author[]{Maja Gwardyś, \and Patrycja Kuzera, \and Krzysztof Gąsiorowski}
+\institute[]{}
+\date[]{}
+
+\begin{document}
+
+% ====================================================================
+% SLAJD TYTUŁOWY I AGENDA
+% ====================================================================
+\begin{frame}
+    \titlepage
+\end{frame}
+
+\begin{frame}{Plan prezentacji}
+    \footnotesize
+    \tableofcontents
+\end{frame}
+
+% ====================================================================
+% SEKCJA 1: ARCHITEKTURA SYSTEMU
+% ====================================================================
+\section{Architektura systemu i decyzje projektowe}
+
+\begin{frame}{Cel systemu i najważniejsze wyzwania projektowe}
+    \footnotesize
+    \begin{columns}[T, onlytextwidth]
+        \begin{column}{0.47\textwidth}
+            \begin{block}{Zakres funkcjonalny systemu}
+                \begin{itemize}
+                    \item Zapisy studentów na sekcje zajęciowe z ograniczonym limitem miejsc (\texttt{capacity}).
+                    \item Obsługa katalogu kursów, sekcji, wykładowców i harmonogramów.
+                    \item Walidacja wymagań wstępnych (zaliczonych kursów) i wykrywanie konfliktów czasowych.
+                    \item Listy oczekujących (FIFO) z automatycznym awansem po zwolnieniu miejsca.
+                \end{itemize}
+            \end{block}
+        \end{column}
+        \begin{column}{0.47\textwidth}
+            \begin{exampleblock}{Kluczowe decyzje architektoniczne}
+                \begin{itemize}
+                    \item \textbf{Źródło prawdy w bazie danych:} Decyzja o zapisie zapada w PostgreSQL z blokadą pesymistyczną (\texttt{SELECT FOR UPDATE}), a nie w pamięci Cache.
+                    \item \textbf{Synchroniczny zapis, asynchroniczny awans:} Zapis główny zwraca wynik natychmiast; kolejka zadań obsługuje w tle awanse z listy oczekujących.
+                    \item \textbf{Pełna rozliczalność:} Logowanie przez SSO uczelni (OIDC) oraz nienadpisywalny dziennik audytu (\texttt{AuditLogService}).
+                \end{itemize}
+            \end{exampleblock}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\diagramframe{Diagram architektury rozwiązania}{architektura.png}
+
+\begin{frame}{Elementy architektury (1/2) -- Klient, Sieć i Serwery}
+    \footnotesize
+    \begin{columns}[T, onlytextwidth]
+        \begin{column}{0.47\textwidth}
+            \begin{block}{Przeglądarka użytkownika (Klient)}
+                \begin{itemize}
+                    \item Pobiera interfejs webowy (React) i wysyła żądania REST do serwerów aplikacji.
+                    \item Podczas logowania realizuje przekierowanie do SSO uczelni i powrót z kodem autoryzacyjnym.
+                \end{itemize}
+            \end{block}
+            \begin{block}{1. System DNS}
+                \begin{itemize}
+                    \item Rozwiązuje nazwę domeny aplikacji na adres IP punktu wejściowego (Load Balancera) i zwraca go do przeglądarki.
+                \end{itemize}
+            \end{block}
+        \end{column}
+        \begin{column}{0.47\textwidth}
+            \begin{block}{2. Load Balancer (Nginx)}
+                \begin{itemize}
+                    \item Rozdziela ruch między serwery aplikacji i pomija nieodpowiadające instancje.
+                    \item Chroni przed przeciążeniem w pierwszych minutach otwarcia zapisów (serwery są bezstanowe dzięki JWT).
+                \end{itemize}
+            \end{block}
+            \begin{block}{3. Serwery aplikacji (Python + FastAPI)}
+                \begin{itemize}
+                    \item Weryfikacja podpisu i czarnej listy tokenu JWT oraz kontrola roli (\texttt{Student} / \texttt{Admin}).
+                    \item Walidacja reguł w \texttt{EnrollmentRuleEngine}, transakcyjne zapisy/wypisy i rejestracja audytu.
+                    \item Globalny \textit{Exception Handler} przechwytuje błędy bazy (\texttt{DatabaseError}), wykonuje \texttt{ROLLBACK} i zwraca \texttt{500 Internal Server Error}.
+                \end{itemize}
+            \end{block}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Elementy architektury (2/2) -- Dane, SSO, Cache i Asynchronia}
+    \footnotesize
+    \begin{columns}[T, onlytextwidth]
+        \begin{column}{0.47\textwidth}
+            \begin{block}{4. Baza danych (PostgreSQL)}
+                \begin{itemize}
+                    \item Główne źródło prawdy: użytkownicy, role, semestry, katalog kursów, sekcji i wykładowców.
+                    \item Przechowuje terminy zajęć, zapisy, listy oczekujących oraz nienadpisywalny dziennik \texttt{audit\_logs}.
+                \end{itemize}
+            \end{block}
+            \begin{block}{5. SSO uczelni (OpenID Connect)}
+                \begin{itemize}
+                    \item Zewnętrzny system uwierzytelniania (aplikacja nigdy nie przetwarza haseł).
+                    \item Wspiera wymianę kodu autoryzacyjnego z ochroną \texttt{state}/\texttt{nonce} i \textbf{JIT Provisioning}.
+                \end{itemize}
+            \end{block}
+        \end{column}
+        \begin{column}{0.47\textwidth}
+            \begin{block}{6. Pamięć podręczna Cache (Redis)}
+                \begin{itemize}
+                    \item Buforuje liczbę wolnych miejsc w sekcjach (unieważniany przy każdej zmianie zapisu).
+                    \item Przechowuje parametry \texttt{state}/\texttt{nonce} oraz czarną listę wylogowanych tokenów JWT.
+                \end{itemize}
+            \end{block}
+            \begin{block}{7a/7b. Kolejka zadań i Workery (Celery)}
+                \begin{itemize}
+                    \item Przechowuje zdarzenia zwolnienia miejsca (\texttt{SEAT\_FREED}) po wypisie lub zwiększeniu limitu.
+                    \item Workery w tle wywołują \texttt{on\_seat\_freed}, iteracyjnie awansując studentów z kolejki.
+                \end{itemize}
+            \end{block}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+% ====================================================================
+% SEKCJA 2: STOS TECHNOLOGICZNY
+% ====================================================================
+\section{Stos technologiczny}
+
+\begin{frame}{Stos technologiczny (1/2) -- Frontend, Sieć i Backend}
+    \footnotesize
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{@{} c L{0.22\textwidth} L{0.22\textwidth} Y @{}}
+        \toprule
+        \rowcolor{HeaderBg}
+        \textbf{Nr} & \textbf{Element} & \textbf{Technologia} & \textbf{Uzasadnienie wyboru} \\
+        \midrule
+        -- & Interfejs użytkownika (Przeglądarka) & \textbf{\textcolor{BlueBrand}{React}} & Popularna biblioteka pozwalająca na szybkie stworzenie reużywalnych komponentów (kafelki katalogu kursów, siatka harmonogramu). \\
+        1 & System nazw domenowych & \textbf{\textcolor{BlueBrand}{Usługa DNS dostawcy}} & Standardowa usługa sieciowa bezpiecznie i szybko przypisująca nazwę domeny systemu do adresu IP serwera. \\
+        2 & Load Balancer & \textbf{\textcolor{BlueBrand}{Nginx}} & Lekkie i wydajne rozwiązanie rozdzielające wzmożony ruch między serwery podczas krytycznych pierwszych minut startu zapisów. \\
+        3 & Serwery aplikacji & \textbf{\textcolor{BlueBrand}{Python + FastAPI + Pydantic}} & Wydajne środowisko REST API. FastAPI obsługuje współbieżność, a Pydantic automatycznie waliduje dane i generuje dokumentację. \\
+        \bottomrule
+    \end{tabularx}
+\end{frame}
+
+\begin{frame}{Stos technologiczny (2/2) -- Baza danych, SSO, Cache i Kolejki}
+    \footnotesize
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{@{} c L{0.22\textwidth} L{0.22\textwidth} Y @{}}
+        \toprule
+        \rowcolor{HeaderBg}
+        \textbf{Nr} & \textbf{Element} & \textbf{Technologia} & \textbf{Uzasadnienie wyboru} \\
+        \midrule
+        4 & Baza danych & \textbf{\textcolor{BlueBrand}{PostgreSQL}} & Relacyjna baza danych obsługująca transakcje ACID i blokady wierszy (\texttt{SELECT FOR UPDATE}), chroniąca przed przekroczeniem limitu miejsc. \\
+        5 & Uwierzytelnianie SSO & \textbf{\textcolor{BlueBrand}{Centralne SSO uczelni (OIDC)}} & Aplikacja nie przechowuje haseł użytkowników; autoryzacja przebiega przez zaufane tokeny wystawiane przez system uczelni. \\
+        6 & Pamięć podręczna Cache & \textbf{\textcolor{BlueBrand}{Redis}} & Gwarantuje błyskawiczny odczyt z pamięci RAM i odciąża bazę danych przed ciągłymi zapytaniami o liczbę wolnych miejsc w katalogu. \\
+        7a/b & Kolejka zadań i workery & \textbf{\textcolor{BlueBrand}{Celery + Redis}} & Sprawdzony mechanizm asynchroniczny realizujący dopisywanie z listy oczekujących w tle przy użyciu Redisa jako brokera. \\
+        \bottomrule
+    \end{tabularx}
+\end{frame}
+
+% ====================================================================
+% SEKCJA 3: SPECYFIKACJA KOMPONENTÓW
+% ====================================================================
+\section{Specyfikacja komponentów (Architektura warstwowa)}
+
+\diagramframe{Diagram komponentów warstwowych systemu}{komponenty.png}
+
+\begin{frame}{Warstwa zewnętrzna, dostępu i serwisów (1/2)}
+    \footnotesize
+    \begin{columns}[T, onlytextwidth]
+        \begin{column}{0.47\textwidth}
+            \begin{block}{1. Warstwa zewnętrzna i dostępu}
+                \begin{itemize}
+                    \item \textbf{Aplikacja webowa (React):} Renderuje widoki katalogu oraz siatki harmonogramu; inicjuje żądania HTTP do bramy API.
+                    \item \textbf{API REST \& SSOAuthService:} Brama wejściowa backendu. Weryfikuje podpis tokenu JWT (\texttt{verify\_session\_token}), czarną listę w Redisie i rolę (\texttt{Student} / \texttt{Admin}).
+                    \item Obsługuje logowanie OIDC (\texttt{state}/\texttt{nonce}), JIT Provisioning (\texttt{provision\_or\_update\_user}) oraz wylogowanie.
+                \end{itemize}
+            \end{block}
+        \end{column}
+        \begin{column}{0.47\textwidth}
+            \begin{exampleblock}{2. Warstwa serwisów (część 1)}
+                \begin{itemize}
+                    \item \textbf{CatalogService:} Wyszukiwanie sekcji z filtrowaniem (\texttt{search\_sections}), odczyt wolnych miejsc z Cache (\texttt{get\_available\_seats}) oraz operacje administratora (kursy, wykładowcy, sekcje z walidacją kolizji sal, limity miejsc i okno zapisów).
+                    \item \textbf{EnrollmentService:} Główny moduł transakcyjny. Realizuje zapis (\texttt{enroll}) z blokadą \texttt{SELECT FOR UPDATE}, wypis (\texttt{drop\_section} + publikacja \texttt{SEAT\_FREED}) oraz pobranie planu (\texttt{get\_student\_schedule}).
+                \end{itemize}
+            \end{exampleblock}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Warstwa serwisów (2/2), Asynchronia i Warstwa danych}
+    \footnotesize
+    \begin{columns}[T, onlytextwidth]
+        \begin{column}{0.47\textwidth}
+            \begin{block}{2. Warstwa serwisów (część 2)}
+                \begin{itemize}
+                    \item \textbf{WaitingListService:} Zarządza kolejką FIFO dla pełnych sekcji (\texttt{join\_waitlist} po walidacji okna zapisów, braku miejsc i \texttt{check\_rules}, \texttt{leave\_waitlist}) oraz asynchronicznym awansem (\texttt{on\_seat\_freed}, \texttt{promote\_next} z listą pominiętych \texttt{excluded\_ids}).
+                    \item \textbf{EnrollmentRuleEngine:} Silnik reguł akademickich (\texttt{check\_rules}): brak duplikatu kursu, zaliczenie wymagań wstępnych (\texttt{COMPLETED}) oraz brak kolizji godzinowych (\texttt{overlaps\_with}).
+                    \item \textbf{AuditLogService:} Rejestruje nienadpisywalne rekordy (\texttt{INSERT-only}) dla kluczowych akcji wraz z IP (lub \texttt{"SYSTEM"} dla zadań w tle) i znacznikiem czasu.
+                \end{itemize}
+            \end{block}
+        \end{column}
+        \begin{column}{0.47\textwidth}
+            \begin{exampleblock}{3. Asynchronia i 4. Warstwa danych}
+                \begin{itemize}
+                    \item \textbf{Kolejka zadań (Celery + Redis) i Workery:} Przekazują i obsługują w tle zdarzenia \texttt{SEAT\_FREED}, wywołując \texttt{WaitingListService.on\_seat\_freed} bez blokowania wątków HTTP.
+                    \item \textbf{PostgreSQL:} Zapewnia spójność transakcyjną limitów miejsc i trwałość relacji.
+                    \item \textbf{Redis:} Odpowiada za bufor wolnych miejsc w katalogu oraz bezpieczeństwo sesji SSO i czarną listę tokenów.
+                \end{itemize}
+            \end{exampleblock}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+% ====================================================================
+% SEKCJA 4: STRUKTURA BAZY DANYCH I MODELE DOMENOWE
+% ====================================================================
+\section{Struktura bazy danych (ER) i modele domenowe}
+
+\diagramframe{Diagram ER -- Struktura relacyjnej bazy danych}{er_diagram.png}
+
+\begin{frame}{Modele danych (1/4) -- Użytkownicy, Role i Semestry}
+    \footnotesize
+    \begin{columns}[T, onlytextwidth]
+        \begin{column}{0.30\textwidth}
+            \begin{block}{\texttt{User} (\texttt{users})}
+                \begin{itemize}
+                    \item \texttt{id: int} (PK)
+                    \item \texttt{sso\_id: str} (UNIQUE)
+                    \item \texttt{email: str} (UNIQUE)
+                    \item \texttt{first\_name: str}
+                    \item \texttt{last\_name: str}
+                    \item \texttt{role\_id: int} (FK)
+                    \item \texttt{is\_active: bool}
+                    \item \texttt{created\_at: datetime}
+                    \item \textbf{Metoda:} \texttt{has\_role(name)}
+                \end{itemize}
+            \end{block}
+        \end{column}
+        \begin{column}{0.30\textwidth}
+            \begin{block}{\texttt{Role} (\texttt{roles})}
+                \begin{itemize}
+                    \item \texttt{id: int} (PK)
+                    \item \texttt{name: str} (UNIQUE:\\ \texttt{Student}, \texttt{Admin})
+                    \item \texttt{description: Opt[str]}
+                \end{itemize}
+            \end{block}
+        \end{column}
+        \begin{column}{0.30\textwidth}
+            \begin{exampleblock}{\texttt{Term} (\texttt{terms})}
+                \begin{itemize}
+                    \item \texttt{id: int} (PK)
+                    \item \texttt{name: str}
+                    \item \texttt{start\_date: date}
+                    \item \texttt{end\_date: date}
+                    \item \texttt{enrollment\_start: dt}
+                    \item \texttt{enrollment\_end: dt}
+                    \item \texttt{is\_active: bool}
+                    \item \textbf{Metoda:}\\ \texttt{is\_enrollment\_open()}
+                \end{itemize}
+            \end{exampleblock}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Modele danych (2/4) -- Kursy i Wykładowcy}
+    \footnotesize
+    \begin{columns}[T, onlytextwidth]
+        \begin{column}{0.47\textwidth}
+            \begin{block}{\texttt{Course} (\texttt{courses} + \texttt{course\_prerequisites})}
+                \begin{itemize}
+                    \item \texttt{id: int} (PK)
+                    \item \texttt{code: str} (UNIQUE -- np. \texttt{"IO-2026"})
+                    \item \texttt{name: str}
+                    \item \texttt{description: Optional[str]}
+                    \item \texttt{credits: int} (punkty ECTS)
+                    \item \texttt{prerequisite\_ids: list[int]}\\
+                    {\scriptsize Relacja M:N realizowana przez tabelę asocjacyjną \texttt{course\_prerequisites} (\texttt{course\_id}, \texttt{prerequisite\_course\_id}).}
+                \end{itemize}
+            \end{block}
+        \end{column}
+        \begin{column}{0.47\textwidth}
+            \begin{exampleblock}{\texttt{Lecturer} (tabela \texttt{lecturers})}
+                \begin{itemize}
+                    \item \texttt{id: int} (PK)
+                    \item \texttt{first\_name: str}
+                    \item \texttt{last\_name: str}
+                    \item \texttt{academic\_title: str}
+                    \item \texttt{email: str} (UNIQUE)
+                    \item \texttt{department: str} (katedra / wydział)
+                \end{itemize}
+            \end{exampleblock}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Modele danych (3/4) -- Sekcje i Terminy zajęć}
+    \footnotesize
+    \begin{columns}[T, onlytextwidth]
+        \begin{column}{0.47\textwidth}
+            \begin{block}{\texttt{Section} (tabela \texttt{sections})}
+                \begin{itemize}
+                    \item \texttt{id: int} (PK)
+                    \item \texttt{term\_id: int} (FK $\rightarrow$ \texttt{terms.id})
+                    \item \texttt{course\_id: int} (FK $\rightarrow$ \texttt{courses.id})
+                    \item \texttt{lecturer\_id: int} (FK $\rightarrow$ \texttt{lecturers.id})
+                    \item \texttt{capacity: int} (limit miejsc w grupie)
+                    \item \texttt{room: str} (oznaczenie sali zajęciowej)
+                    \item \texttt{schedules: list[ScheduleSlot]} (relacja 1:N)
+                \end{itemize}
+            \end{block}
+        \end{column}
+        \begin{column}{0.47\textwidth}
+            \begin{exampleblock}{\texttt{ScheduleSlot} (tabela \texttt{schedules})}
+                \begin{itemize}
+                    \item \texttt{id: int} (PK)
+                    \item \texttt{section\_id: int} (FK $\rightarrow$ \texttt{sections.id})
+                    \item \texttt{day\_of\_week: DayOfWeek} (Enum)
+                    \item \texttt{start\_time: time}
+                    \item \texttt{end\_time: time}
+                    \item \textbf{Metoda:} \texttt{overlaps\_with(other) -> bool}\\
+                    {\scriptsize Sprawdza kolizję przedziałów czasowych w tym samym dniu tygodnia.}
+                \end{itemize}
+            \end{exampleblock}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Modele danych (4/4) -- Zapisy, Kolejki, Audyt oraz Enum / DTO}
+    \scriptsize
+    \begin{columns}[T, onlytextwidth]
+        \begin{column}{0.29\textwidth}
+            \begin{block}{\texttt{Enrollment} (\texttt{enrollments})}
+                \begin{itemize}
+                    \item \texttt{id: int} (PK)
+                    \item \texttt{student\_id: int} (FK)
+                    \item \texttt{section\_id: int} (FK)
+                    \item \texttt{status: EnrollmentStatus} (\texttt{ENROLLED}, \texttt{DROPPED}, \texttt{COMPLETED})
+                    \item \texttt{enrolled\_at: datetime}
+                \end{itemize}
+            \end{block}
+        \end{column}
+        \begin{column}{0.30\textwidth}
+            \begin{block}{\texttt{WaitingList} \& \texttt{AuditLog}}
+                \textbf{\texttt{WaitingListEntry} (\texttt{waiting\_lists}):}
+                \begin{itemize}
+                    \item \texttt{id}, \texttt{student\_id}, \texttt{section\_id}
+                    \item \texttt{created\_at: dt} (FIFO)
+                \end{itemize}
+                \vspace{2pt}
+                \textbf{\texttt{AuditLog} (\texttt{audit\_logs}):}
+                \begin{itemize}
+                    \item \texttt{id}, \texttt{user\_id}, \texttt{action}
+                    \item \texttt{ip\_address: Opt[str]}, \texttt{details}, \texttt{created\_at}
+                \end{itemize}
+            \end{block}
+        \end{column}
+        \begin{column}{0.31\textwidth}
+            \begin{exampleblock}{Enum i obiekty DTO}
+                \begin{itemize}
+                    \item \textbf{\texttt{EnrollmentResultStatus}:}\\ \texttt{ENROLLED}, \texttt{FULL}, \texttt{RULE\_VIOLATION}, \texttt{CLOSED}
+                    \item \textbf{\texttt{WaitlistPromotionStatus}:}\\ \texttt{PROMOTED}, \texttt{SKIPPED\_CONFLICT}, \texttt{NO\_SEATS}, \texttt{EMPTY}
+                    \item \textbf{DTO:} \texttt{SSOClaimsDTO}, \texttt{AuthTokenDTO}, \texttt{ResultDTO}, \texttt{RuleViolationDTO}, \texttt{SectionCatalogDTO}, \texttt{StudentScheduleItemDTO}, \texttt{CourseDTO}, \texttt{LecturerDTO}
+                \end{itemize}
+            \end{exampleblock}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+% ====================================================================
+% SEKCJA 5: SERWISY LOGIKI BIZNESOWEJ I METODY
+% ====================================================================
+\section{Projekt klas serwisowych i specyfikacja metod}
+
+\begin{frame}{Serwisy logiki biznesowej -- \texttt{SSOAuthService}}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.15}
+    Odpowiada za logowanie przez system SSO uczelni (OpenID Connect), synchronizację kont (JIT Provisioning) oraz zarządzanie sesjami JWT.
+    \vspace{3pt}
+
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{@{} M{0.35\textwidth} T{0.15\textwidth} Y @{}}
+        \toprule
+        \rowcolor{HeaderBg}
+        \textbf{\textsf{\textcolor{NavyPrimary}{Sygnatura metody}}} & \textbf{\textsf{\textcolor{NavyPrimary}{Typ zwracany}}} & \textbf{\textcolor{NavyPrimary}{Opis funkcjonalności}} \\
+        \midrule
+        get\_authorization\_url() & tuple[str, str] & Generuje parametry \texttt{state} i \texttt{nonce} (ochrona CSRF/Replay), zapisuje je w Cache i zwraca adres URL przekierowania do SSO. \\
+        handle\_sso\_callback(code, state, ip) & AuthTokenDTO & Wymienia kod z SSO na token JWT, weryfikuje \texttt{state}, synchronizuje profil, sprawdza \texttt{is\_active}, loguje \texttt{SSO\_LOGIN} i wydaje token sesyjny. \\
+        provision\_or\_update\_user(claims) & User & Implementuje JIT Provisioning: wyszukuje użytkownika po \texttt{sso\_id}, tworzy nowy rekord lub aktualizuje dane istniejącego konta. \\
+        verify\_session\_token(token: str) & User & Weryfikuje podpis i ważność tokenu JWT, sprawdza czarną listę w Redisie i rekonstruuje kontekst zalogowanego użytkownika. \\
+        logout(token: str, user\_id: int, ip: str) & None & Unieważnia sesję w Cache (wpis na czarną listę) i rejestruje akcję \texttt{SSO\_LOGOUT} wraz z adresem IP w dzienniku audytu. \\
+        \bottomrule
+    \end{tabularx}
+\end{frame}
+
+\begin{frame}{Serwisy logiki biznesowej -- \texttt{EnrollmentRuleEngine}}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.15}
+    Weryfikuje twarde reguły biznesowe uczelni przed dopuszczeniem studenta do zapisu, przed dołączeniem do kolejki oraz przed automatycznym awansem z listy oczekujących.
+    \vspace{3pt}
+
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{@{} M{0.36\textwidth} T{0.16\textwidth} Y @{}}
+        \toprule
+        \rowcolor{HeaderBg}
+        \textbf{\textsf{\textcolor{NavyPrimary}{Sygnatura metody}}} & \textbf{\textsf{\textcolor{NavyPrimary}{Typ zwracany}}} & \textbf{\textcolor{NavyPrimary}{Opis funkcjonalności}} \\
+        \midrule
+        check\_rules(student\_id: int, section\_id: int) & Optional[DTO] & Metoda fasadowa. Weryfikuje brak duplikatu kursu, spełnienie wymagań wstępnych i brak kolizji w planie. Zwraca \texttt{None} lub \texttt{RuleViolationDTO}. \\
+        verify\_prerequisites(student\_id: int, course\_id: int) & list[Course] & Porównuje listę przedmiotów wymaganych (\texttt{prerequisite\_ids}) z zapisami studenta o statusie \texttt{COMPLETED}. Zwraca brakujące kursy. \\
+        has\_schedule\_conflict(student\_id: int, section\_id: int) & list[Section] & Pobiera aktualne zapisy (\texttt{ENROLLED}) w semestrze i szuka kolizji czasowych z harmonogramem nowej sekcji przez \texttt{overlaps\_with()}. \\
+        is\_already\_enrolled\_in\_course(\newline student\_id, course\_id, term\_id) & bool & Weryfikuje, czy student nie próbuje zapisać się na dwie różne sekcje tego samego przedmiotu w ramach jednego semestru. \\
+        \bottomrule
+    \end{tabularx}
+\end{frame}
+
+\begin{frame}{Serwisy logiki biznesowej -- \texttt{EnrollmentService} i \texttt{AuditLogService}}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.15}
+    Główny moduł transakcyjny obsługujący zapisy i wypisy oraz serwis niezaprzeczalnej ścieżki audytu (\texttt{Audit Trail}).
+    \vspace{3pt}
+
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{@{} M{0.36\textwidth} T{0.16\textwidth} Y @{}}
+        \toprule
+        \rowcolor{HeaderBg}
+        \textbf{\textsf{\textcolor{NavyPrimary}{Sygnatura metody}}} & \textbf{\textsf{\textcolor{NavyPrimary}{Typ zwracany}}} & \textbf{\textcolor{NavyPrimary}{Opis funkcjonalności}} \\
+        \midrule
+        enroll(student\_id: int, section\_id: int, ip: str) & ResultDTO & Weryfikuje okno zapisów oraz reguły. Blokuje wiersz (\texttt{SELECT FOR UPDATE}), sprawdza limit, tworzy lub wznawia zapis (\texttt{ON CONFLICT DO UPDATE}), loguje audyt z IP i czyści Cache. \\
+        drop\_section(student\_id: int, section\_id: int, ip: str) & bool & Weryfikuje okno zapisów, zmienia status zapisu na \texttt{DROPPED}, loguje audyt z IP, unieważnia Cache i publikuje do kolejki zdarzenie \texttt{SEAT\_FREED}. \\
+        get\_student\_schedule(student\_id, term\_id) & list[ScheduleDTO] & Agreguje pełny plan zajęć studenta dla zadanego semestru (zwraca listę \texttt{StudentScheduleItemDTO}: sala, prowadzący, terminy \texttt{ScheduleSlot}). \\
+        log\_action(user\_id, action,\newline ip: Opt[str] = "SYSTEM", details) & None & Metoda \texttt{AuditLogService}: wstawia (\texttt{INSERT-only}) rekord audytowy. Dla zadań asynchronicznych w tle przyjmuje \texttt{ip="SYSTEM"}. \\
+        \bottomrule
+    \end{tabularx}
+\end{frame}
+
+\begin{frame}{Serwisy logiki biznesowej -- \texttt{WaitingListService}}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.15}
+    Zarządza kolejką oczekujących (FIFO) dla pełnych sekcji oraz asynchronicznym procesem awansowania uruchamianym przez workery Celery.
+    \vspace{3pt}
+
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{@{} M{0.36\textwidth} T{0.15\textwidth} Y @{}}
+        \toprule
+        \rowcolor{HeaderBg}
+        \textbf{\textsf{\textcolor{NavyPrimary}{Sygnatura metody}}} & \textbf{\textsf{\textcolor{NavyPrimary}{Typ zwracany}}} & \textbf{\textcolor{NavyPrimary}{Opis funkcjonalności}} \\
+        \midrule
+        join\_waitlist(student\_id: int, section\_id: int, ip: str) & int & Weryfikuje otwarte okno zapisów (\texttt{is\_enrollment\_open}), brak wolnych miejsc w sekcji, brak duplikatu w kolejce oraz reguły \texttt{check\_rules()}, dopisuje do kolejki, loguje audyt i zwraca pozycję. \\
+        leave\_waitlist(student\_id: int, section\_id: int, ip: str) & bool & Usuwa rekord z tabeli \texttt{waiting\_lists} i rejestruje akcję \texttt{LEAVE\_WAITLIST} wraz z adresem IP w dzienniku audytu. \\
+        on\_seat\_freed(section\_id: int) & int & Metoda asynchroniczna (worker Celery). Utrzymuje listę \texttt{excluded\_ids} i wywołuje iteracyjnie \texttt{promote\_next} dopóki są wolne miejsca, po czym czyści Cache. \\
+        promote\_next(section\_id: int,\newline excluded\_ids: list[int]) & PromotionEnum & Pobiera najstarszy wpis z kolejki (\texttt{NOT IN excluded\_ids}) pod blokadą i wywołuje \texttt{check\_rules()}. Przy sukcesie zapisuje (\texttt{PROMOTED}, \texttt{ip="SYSTEM"}); przy kolizji pomija osobę (\texttt{SKIPPED\_CONFLICT}). \\
+        \bottomrule
+    \end{tabularx}
+\end{frame}
+
+\begin{frame}{Serwisy logiki biznesowej -- \texttt{CatalogService} (1/2)}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.15}
+    Obsługa wyszukiwania w katalogu, buforowania wolnych miejsc w Redisie oraz konfiguracji sekcji zajęciowych.
+    \vspace{3pt}
+
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{@{} M{0.36\textwidth} T{0.14\textwidth} Y @{}}
+        \toprule
+        \rowcolor{HeaderBg}
+        \textbf{\textsf{\textcolor{NavyPrimary}{Sygnatura metody}}} & \textbf{\textsf{\textcolor{NavyPrimary}{Typ zwracany}}} & \textbf{\textcolor{NavyPrimary}{Opis funkcjonalności}} \\
+        \midrule
+        search\_sections(term\_id, query, lecturer\_id, day\_of\_week) & list[DTO] & Wyszukuje sekcje aktywnego semestru, filtrując po nazwie/kodzie kursu, wykładowcy i dniu tygodnia. Liczbę wolnych miejsc dociąga z pamięci Cache. \\
+        get\_available\_seats(section\_id: int) & int & Sprawdza Cache (Redis). Przy braku klucza (Miss) wykonuje zapytanie \texttt{capacity - COUNT(ENROLLED)}, zapisuje wynik w Cache i zwraca wartość. \\
+        create\_or\_update\_section(data, admin\_id: int, ip: str) & Section & Tworzy lub aktualizuje przypisania wykładowcy, sali i terminów. Waliduje globalnie brak kolizji sali z innymi zajęciami w tych samych godzinach i loguje audyt. \\
+        configure\_enrollment\_window(\newline term\_id, start, end, admin\_id, ip) & Term & Ustawia daty otwarcia (\texttt{enrollment\_start}) i zamknięcia (\texttt{enrollment\_end}) zapisów obowiązujące dla całego semestru oraz rejestruje zmianę w audycie. \\
+        \bottomrule
+    \end{tabularx}
+\end{frame}
+
+\begin{frame}{Serwisy logiki biznesowej -- \texttt{CatalogService} (2/2)}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.15}
+    Zarządzanie limitami miejsc w grupach, definicjami kursów w katalogu oraz kadrą dydaktyczną.
+    \vspace{3pt}
+
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{@{} M{0.36\textwidth} T{0.14\textwidth} Y @{}}
+        \toprule
+        \rowcolor{HeaderBg}
+        \textbf{\textsf{\textcolor{NavyPrimary}{Sygnatura metody}}} & \textbf{\textsf{\textcolor{NavyPrimary}{Typ zwracany}}} & \textbf{\textcolor{NavyPrimary}{Opis funkcjonalności}} \\
+        \midrule
+        update\_section\_capacity(section\_id, new\_cap, admin\_id: int, ip: str) & Section & Aktualizuje limit miejsc w sekcji i loguje audyt. Odrzuca wartość mniejszą niż liczba już zapisanych studentów. Zwiększenie limitu publikuje zdarzenie \texttt{SEAT\_FREED}. \\
+        create\_or\_update\_course(data: CourseDTO, admin\_id: int, ip: str) & Course & Tworzy lub aktualizuje definicję kursu w katalogu wraz z punktami ECTS oraz listą wymagań wstępnych (\texttt{prerequisite\_ids}) i loguje audyt. \\
+        create\_or\_update\_lecturer(data: LecturerDTO, admin\_id: int, ip: str) & Lecturer & Dodaje nowego lub edytuje istniejącego wykładowcę w katalogu wraz z tytułem naukowym i katedrą oraz rejestruje zmianę w audycie. \\
+        \bottomrule
+    \end{tabularx}
+\end{frame}
+
+% ====================================================================
+% SEKCJA 6: PRZYPADKI UŻYCIA I DIAGRAMY SEKWENCJI (UC1 - UC6)
+% ====================================================================
+\section{Przypadki użycia (Use Cases) i diagramy sekwencji}
+
+\diagramframe{Diagram przypadków użycia (UML Use Case)}{use_case.png}
+
+% --------------------------------------------------------------------
+% UC1: Zapis na sekcję (2 slajdy tabelaryczne + 2 diagramy sekwencji)
+% --------------------------------------------------------------------
+\begin{frame}{UC1: Zapis na sekcję (1/2) -- Metryczka przypadku użycia}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.18}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{|U{3.6cm}|Y|}
+        \hline
+        \rowcolor{HeaderBg}
+        \textcolor{NavyPrimary}{\textbf{Pole}} & \textcolor{NavyPrimary}{\textbf{Opis}} \\
+        \hline
+        Aktorzy & Student, System \\
+        \hline
+        Zakres & System zapisu na zajęcia \\
+        \hline
+        Udziałowcy i ich cele & \textbf{Student:} chce zapisać się na wybraną sekcję kursu. \textbf{System:} pilnuje limitu miejsc, wymagań wstępnych i braku kolizji w harmonogramie. \textbf{Administrator:} chce, by zapisy przebiegały zgodnie z ustawionymi limitami i zasadami. \\
+        \hline
+        Zdarzenie wyzwalające & Student wybiera sekcję w katalogu i funkcję „Zapisz się”. \\
+        \hline
+        Warunki wstępne & Student jest zalogowany. Wybrana sekcja istnieje w katalogu. Student nie jest jeszcze zapisany na tę sekcję. \\
+        \hline
+        Warunki końcowe dla sukcesu & Student jest zapisany na sekcję, liczba wolnych miejsc zmniejszyła się o 1, a Student widzi potwierdzenie. \\
+        \hline
+        Warunki końcowe dla niepowodzenia & Student nie jest zapisany, stan sekcji się nie zmienił, a Student widzi komunikat z przyczyną. \\
+        \hline
+    \end{tabularx}
+\end{frame}
+
+\begin{frame}[shrink=6]{UC1: Zapis na sekcję (2/2) -- Scenariusze i wyjątki}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.08}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{|U{3.5cm}|Y|}
+        \hline
+        \rowcolor{HeaderBg}
+        \textcolor{NavyPrimary}{\textbf{Scenariusz}} & \textcolor{NavyPrimary}{\textbf{Przebieg}} \\
+        \hline
+        Główny: zapis udany &
+        1. \textbf{Student} wybiera sekcję i funkcję „Zapisz się”. \newline
+        2. \textbf{System} sprawdza, czy zapisy są otwarte. \newline
+        3. \textbf{System} weryfikuje warunki zapisu: sprawdza wymagania wstępne (zaliczone kursy), sprawdza czy Student nie jest już zapisany na inną sekcję, wykrywa konflikty z harmonogramem Studenta. \newline
+        4. \textbf{System} w jednej transakcji, z blokadą sekcji, sprawdza dostępność miejsc w bazie i tworzy zapis. \newline
+        5. \textbf{System} wyświetla potwierdzenie zapisu. \\
+        \hline
+        Alternatywny: sekcja pełna \newline {\normalfont\tiny (punkt rozszerzenia po kroku 4)} &
+        4a. \textbf{System} informuje, że w sekcji nie ma wolnych miejsc, i proponuje dołączenie do listy oczekujących. \newline
+        4b. \textbf{Student} potwierdza, więc uruchamia się przypadek „Dołącz do listy oczekujących”: \textbf{System} dodaje Studenta na koniec kolejki i wyświetla jego pozycję. \newline
+        4c. Jeśli \textbf{Student} odmawia, przypadek kończy się bez zmian. \\
+        \hline
+    \end{tabularx}
+
+    \vspace{3pt}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{|U{4.3cm}|Y|}
+        \hline
+        \rowcolor{HeaderBg}
+        \textcolor{NavyPrimary}{\textbf{Wyjątki}} & \textcolor{NavyPrimary}{\textbf{Reakcja systemu}} \\
+        \hline
+        Zapisy są zamknięte (krok 2) & Komunikat o terminie zapisów, koniec. \\
+        \hline
+        Brak wymaganych kursów (krok 3) & Komunikat z listą brakujących kursów. Dołączenie do listy oczekujących nie jest oferowane. \\
+        \hline
+        Konflikt harmonogramu (krok 3) & Komunikat ze wskazaniem kolidujących zajęć. Dołączenie do listy oczekujących nie jest oferowane. \\
+        \hline
+        Ostatnie miejsce zajął ktoś inny między sprawdzeniem a zapisem (krok 4) & Transakcja ponownie sprawdza dostępność. Jeśli miejsca już nie ma, \textbf{System} przechodzi do scenariusza „sekcja pełna”. \\
+        \hline
+        Błąd bazy danych & Komunikat o błędzie, transakcja jest wycofana, brak zmian. \\
+        \hline
+    \end{tabularx}
+\end{frame}
+
+\diagramframe{Diagram sekwencji UC1a -- Zapis na sekcję zajęciową}{uc1a.png}
+
+\diagramframe{Diagram sekwencji UC1b -- Dołączenie do kolejki i walidacja check\_rules()}{uc1b.png}
+
+% --------------------------------------------------------------------
+% UC2: Dodawanie z kolejki (2 slajdy tabelaryczne + 1 diagram sekwencji)
+% --------------------------------------------------------------------
+\begin{frame}{UC2: Dodawanie z kolejki (1/2) -- Metryczka przypadku użycia}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.18}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{|U{3.6cm}|Y|}
+        \hline
+        \rowcolor{HeaderBg}
+        \textcolor{NavyPrimary}{\textbf{Pole}} & \textcolor{NavyPrimary}{\textbf{Opis}} \\
+        \hline
+        Aktorzy & Brak (przypadek uruchamiany zdarzeniem). \\
+        \hline
+        Zakres & System zapisu na zajęcia \\
+        \hline
+        Udziałowcy i ich cele & \textbf{Student z kolejki:} chce dostać miejsce bez ponownego sprawdzania sekcji. \textbf{System:} przydziela zwolnione miejsca w kolejności zgłoszeń i pilnuje wymagań, konfliktów i limitu. \textbf{Administrator:} chce, by zwiększony limit od razu był wykorzystany. \\
+        \hline
+        Zdarzenie wyzwalające & W sekcji zwolniło się miejsce lub Administrator zwiększył limit. \\
+        \hline
+        Warunki wstępne & Sekcja ma co najmniej jedno wolne miejsce. Lista oczekujących tej sekcji nie jest pusta. \\
+        \hline
+        Warunki końcowe dla sukcesu & Pierwszy kwalifikujący się Student z kolejki jest zapisany i usunięty z listy. Pozostałym pozycje się przesunęły. \\
+        \hline
+        Warunki końcowe dla niepowodzenia & Nikt z kolejki nie został zapisany, miejsce pozostaje wolne, a dane są spójne. \\
+        \hline
+    \end{tabularx}
+\end{frame}
+
+\begin{frame}[shrink=5]{UC2: Dodawanie z kolejki (2/2) -- Scenariusze i wyjątki}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.08}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{|U{3.5cm}|Y|}
+        \hline
+        \rowcolor{HeaderBg}
+        \textcolor{NavyPrimary}{\textbf{Scenariusz}} & \textcolor{NavyPrimary}{\textbf{Przebieg}} \\
+        \hline
+        Główny: awans z kolejki &
+        1. \textbf{System} wykrywa wolne miejsce w sekcji i niepustą listę oczekujących. \newline
+        2. \textbf{System} wybiera pierwszego Studenta na liście (najstarszy wpis). \newline
+        3. \textbf{System} weryfikuje warunki zapisu: wymagania wstępne, konflikty z aktualnym harmonogramem i brak innej sekcji tego kursu. \newline
+        4. \textbf{System} w jednej transakcji tworzy zapis, usuwa wpis z listy i zajmuje miejsce. \newline
+        5. Jeśli zostały wolne miejsca (np. po zwiększeniu limitu o kilka) i lista nie jest pusta, \textbf{System} wraca do kroku 2. \\
+        \hline
+        Alternatywny: pierwszy Student nie spełnia warunków &
+        3a. \textbf{System} stwierdza, że Student ma teraz konflikt albo brak wymagań (np. zapisał się w międzyczasie na kolidujące zajęcia). \newline
+        3b. \textbf{System} przechodzi do następnej osoby (krok 2). \\
+        \hline
+        Alternatywny: lista wyczerpana &
+        Po przejściu całej listy nikt nie spełnia warunków. \textbf{System} kończy przypadek, a miejsce zostaje do zwykłego zapisu. \\
+        \hline
+    \end{tabularx}
+
+    \vspace{3pt}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{|U{4.3cm}|Y|}
+        \hline
+        \rowcolor{HeaderBg}
+        \textcolor{NavyPrimary}{\textbf{Wyjątki}} & \textcolor{NavyPrimary}{\textbf{Reakcja systemu}} \\
+        \hline
+        Ktoś zapisał się zwykłym trybem na zwolnione miejsce przed awansem & Transakcja w kroku 4 ponownie sprawdza dostępność. Gdy miejsca nie ma, awans nie następuje, a kolejka zostaje bez zmian. \\
+        \hline
+        Błąd bazy danych w kroku 4 & Transakcja wycofana, Student zostaje na liście, a awans jest ponawiany. \\
+        \hline
+    \end{tabularx}
+\end{frame}
+
+\diagramframe{Diagram sekwencji UC2 -- Automatyczny awans z kolejki}{uc2.png}
+
+% --------------------------------------------------------------------
+% UC3: Wypis z sekcji (2 slajdy tabelaryczne + 1 diagram sekwencji)
+% --------------------------------------------------------------------
+\begin{frame}{UC3: Wypis z sekcji (1/2) -- Metryczka przypadku użycia}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.18}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{|U{3.6cm}|Y|}
+        \hline
+        \rowcolor{HeaderBg}
+        \textcolor{NavyPrimary}{\textbf{Pole}} & \textcolor{NavyPrimary}{\textbf{Opis}} \\
+        \hline
+        Aktorzy & Student, System \\
+        \hline
+        Zakres & System zapisu na zajęcia \\
+        \hline
+        Udziałowcy i ich cele & \textbf{Student:} wypis z sekcji. \textbf{System:} spójność danych i przekazanie miejsca do kolejki. \textbf{Administrator:} wykorzystanie zwolnionych miejsc. \\
+        \hline
+        Zdarzenie wyzwalające & Student wybiera sekcję i klika „Wypisz się”. \\
+        \hline
+        Warunki wstępne & Student jest zalogowany i zapisany na sekcję. \\
+        \hline
+        Warunki końcowe dla sukcesu & Liczba wolnych miejsc $+1$, wyemitowane zdarzenie zwolnienia miejsca, wyświetlone potwierdzenie. \\
+        \hline
+        Warunki końcowe dla niepowodzenia & Brak zmian stanu sekcji, Student pozostaje zapisany i widzi komunikat z przyczyną. \\
+        \hline
+    \end{tabularx}
+\end{frame}
+
+\begin{frame}{UC3: Wypis z sekcji (2/2) -- Scenariusze i wyjątki}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.12}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{|U{3.5cm}|Y|}
+        \hline
+        \rowcolor{HeaderBg}
+        \textcolor{NavyPrimary}{\textbf{Scenariusz}} & \textcolor{NavyPrimary}{\textbf{Przebieg}} \\
+        \hline
+        Główny: wypis udany &
+        1. \textbf{Student} wybiera sekcję i klika „Wypisz się”. \newline
+        2. \textbf{System} wyświetla prośbę o potwierdzenie. \newline
+        3. \textbf{Student} potwierdza chęć wypisu. \newline
+        4. \textbf{System} sprawdza, czy zapisy są otwarte. \newline
+        5. \textbf{System} w transakcji z blokadą sekcji zmienia status na \texttt{DROPPED}. \newline
+        6. \textbf{System} unieważnia cache i wysyła zdarzenie „zwolnione miejsce”. \newline
+        7. \textbf{System} wyświetla potwierdzenie wypisu. \\
+        \hline
+        Następstwo & \textbf{System} uruchamia \textbf{UC2 (dodawanie z kolejki)}. \\
+        \hline
+        Alternatywny: rezygnacja (po kroku 2) &
+        2a. \textbf{Student} odrzuca potwierdzenie. \newline
+        2b. \textbf{System} anuluje operację, przypadek kończy się bez zmian. \\
+        \hline
+    \end{tabularx}
+
+    \vspace{4pt}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{|U{4.3cm}|Y|}
+        \hline
+        \rowcolor{HeaderBg}
+        \textcolor{NavyPrimary}{\textbf{Wyjątki}} & \textcolor{NavyPrimary}{\textbf{Reakcja systemu}} \\
+        \hline
+        Zapisy są zamknięte (krok 4) & Komunikat o terminie zapisów, koniec. \\
+        \hline
+        Student nie jest zapisany (krok 5) & Komunikat o braku zapisu, odświeżenie widoku. \\
+        \hline
+        Błąd bazy danych (krok 5) & Transakcja wycofana, komunikat o błędzie. \\
+        \hline
+    \end{tabularx}
+\end{frame}
+
+\diagramframe{Diagram sekwencji UC3 -- Wypis z sekcji}{uc3.png}
+
+% --------------------------------------------------------------------
+% UC4: Wypis z kolejki oczekujących (2 slajdy tabelaryczne + 1 diagram)
+% --------------------------------------------------------------------
+\begin{frame}{UC4: Wypis z kolejki oczekujących (1/2) -- Metryczka przypadku użycia}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.18}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{|U{3.6cm}|Y|}
+        \hline
+        \rowcolor{HeaderBg}
+        \textcolor{NavyPrimary}{\textbf{Pole}} & \textcolor{NavyPrimary}{\textbf{Opis}} \\
+        \hline
+        Aktorzy & Student, System \\
+        \hline
+        Zakres & System zapisu na zajęcia \\
+        \hline
+        Udziałowcy i ich cele & \textbf{Student:} rezygnacja z oczekiwania. \textbf{System:} usunięcie wpisu i zachowanie kolejności. \textbf{Administrator:} aktualność listy oczekujących. \\
+        \hline
+        Zdarzenie wyzwalające & Student wybiera sekcję i klika „Wypisz się z kolejki”. \\
+        \hline
+        Warunki wstępne & Student jest zalogowany i znajduje się na liście oczekujących danej sekcji. \\
+        \hline
+        Warunki końcowe dla sukcesu & Usunięty wpis z kolejki, przesunięcie pozycji pozostałych osób, wyświetlone potwierdzenie. \\
+        \hline
+        Warunki końcowe dla niepowodzenia & Student pozostaje w kolejce na swojej pozycji, komunikat z przyczyną. \\
+        \hline
+    \end{tabularx}
+\end{frame}
+
+\begin{frame}{UC4: Wypis z kolejki oczekujących (2/2) -- Scenariusze i wyjątki}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.12}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{|U{3.5cm}|Y|}
+        \hline
+        \rowcolor{HeaderBg}
+        \textcolor{NavyPrimary}{\textbf{Scenariusz}} & \textcolor{NavyPrimary}{\textbf{Przebieg}} \\
+        \hline
+        Główny: wypis z kolejki udany &
+        1. \textbf{Student} wybiera sekcję i klika „Wypisz się z kolejki”. \newline
+        2. \textbf{System} wyświetla prośbę o potwierdzenie. \newline
+        3. \textbf{Student} potwierdza chęć wypisu. \newline
+        4. \textbf{System} w transakcji usuwa wpis z tabeli i przesuwa pozycje kolejnych osób. \newline
+        5. \textbf{System} wyświetla potwierdzenie wypisu z kolejki. \\
+        \hline
+        Następstwo & Brak (miejsce nie zostało zwolnione). \\
+        \hline
+        Alternatywny: rezygnacja (po kroku 2) &
+        2a. \textbf{Student} odrzuca potwierdzenie. \newline
+        2b. \textbf{System} anuluje operację, przypadek kończy się bez zmian. \\
+        \hline
+    \end{tabularx}
+
+    \vspace{4pt}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{|U{4.3cm}|Y|}
+        \hline
+        \rowcolor{HeaderBg}
+        \textcolor{NavyPrimary}{\textbf{Wyjątki}} & \textcolor{NavyPrimary}{\textbf{Reakcja systemu}} \\
+        \hline
+        Student został w międzyczasie automatycznie zapisany (krok 4) & Komunikat o awansie na sekcję, odświeżenie widoku. Użytkownik przekierowany do \textbf{UC3 (Wypis z sekcji)}. \\
+        \hline
+        Błąd bazy danych (krok 4) & Transakcja wycofana, komunikat o błędzie, Student pozostaje w kolejce. \\
+        \hline
+    \end{tabularx}
+\end{frame}
+
+\diagramframe{Diagram sekwencji UC4 -- Wypis z kolejki oczekujących}{uc4.png}
+
+% --------------------------------------------------------------------
+% UC5: Przeglądanie katalogu i harmonogramu (2 slajdy + 2 diagramy)
+% --------------------------------------------------------------------
+\begin{frame}{UC5: Przeglądanie katalogu i harmonogramu (1/2) -- Metryczka}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.18}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{|U{3.6cm}|Y|}
+        \hline
+        \rowcolor{HeaderBg}
+        \textcolor{NavyPrimary}{\textbf{Pole}} & \textcolor{NavyPrimary}{\textbf{Opis}} \\
+        \hline
+        Aktorzy & Student, System \\
+        \hline
+        Zakres & System zapisu na zajęcia \\
+        \hline
+        Udziałowcy i ich cele & \textbf{Student:} przegląd oferty i własnego planu zajęć. \textbf{System:} szybkie i wydajne serwowanie danych. \\
+        \hline
+        Zdarzenie wyzwalające & Student otwiera katalog sekcji lub widok „Mój harmonogram”. \\
+        \hline
+        Warunki wstępne & Student jest zalogowany. Istnieje aktywny semestr. \\
+        \hline
+        Warunki końcowe dla sukcesu & Wyświetlony katalog z wolnymi miejscami lub tygodniowy harmonogram Studenta. Brak zmian danych w systemie. \\
+        \hline
+        Warunki końcowe dla niepowodzenia & Wyświetlony komunikat błędu, brak zmian danych w systemie. \\
+        \hline
+    \end{tabularx}
+\end{frame}
+
+\begin{frame}{UC5: Przeglądanie katalogu i harmonogramu (2/2) -- Scenariusze i wyjątki}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.14}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{|U{3.5cm}|Y|}
+        \hline
+        \rowcolor{HeaderBg}
+        \textcolor{NavyPrimary}{\textbf{Scenariusz}} & \textcolor{NavyPrimary}{\textbf{Przebieg}} \\
+        \hline
+        Główny: przeglądanie katalogu &
+        1. \textbf{Student} otwiera katalog sekcji. \newline
+        2. \textbf{System} pobiera sekcje aktywnego semestru (z cache/bazy danych) i wyświetla listę z wolnymi miejscami. \newline
+        3. \textbf{Student} nakłada filtry (kod kursu, wykładowca, dzień). \newline
+        4. \textbf{System} zwraca przefiltrowane wyniki. \\
+        \hline
+        Alternatywny: harmonogram &
+        1a. \textbf{Student} otwiera widok „Mój harmonogram”. \newline
+        1b. \textbf{System} pobiera i wyświetla plan zapisanych sekcji. \\
+        \hline
+    \end{tabularx}
+
+    \vspace{4pt}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{|U{4.3cm}|Y|}
+        \hline
+        \rowcolor{HeaderBg}
+        \textcolor{NavyPrimary}{\textbf{Wyjątki}} & \textcolor{NavyPrimary}{\textbf{Reakcja systemu}} \\
+        \hline
+        Błąd bazy danych / brak aktywnego semestru & Wyświetlenie komunikatu o braku aktywnego semestru lub błędzie pobierania danych. \\
+        \hline
+    \end{tabularx}
+\end{frame}
+
+\diagramframe{Diagram sekwencji UC5a -- Przeglądanie i filtrowanie katalogu sekcji}{uc5a.png}
+
+\diagramframe{Diagram sekwencji UC5b -- Wyświetlenie harmonogramu studenta}{uc5b.png}
+
+% --------------------------------------------------------------------
+% UC6: Logowanie przez SSO (2 slajdy tabelaryczne + 2 diagramy)
+% --------------------------------------------------------------------
+\begin{frame}{UC6: Logowanie przez SSO (1/2) -- Metryczka przypadku użycia}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.18}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{|U{3.6cm}|Y|}
+        \hline
+        \rowcolor{HeaderBg}
+        \textcolor{NavyPrimary}{\textbf{Pole}} & \textcolor{NavyPrimary}{\textbf{Opis}} \\
+        \hline
+        Aktorzy & Użytkownik, System, SSO uczelni \\
+        \hline
+        Zakres & System zapisu na zajęcia \\
+        \hline
+        Udziałowcy i ich cele & \textbf{Użytkownik:} zalogowanie kontem uczelnianym. \textbf{System:} potwierdzenie tożsamości i roli. \textbf{SSO uczelni:} uwierzytelnienie użytkownika. \\
+        \hline
+        Zdarzenie wyzwalające & Użytkownik klika „Zaloguj przez SSO”. \\
+        \hline
+        Warunki wstępne & Użytkownik posiada konto w SSO uczelni. \\
+        \hline
+        Warunki końcowe dla sukcesu & Użytkownik zalogowany, wygenerowany token sesji, udostępniony panel główny. \\
+        \hline
+        Warunki końcowe dla niepowodzenia & Brak zalogowania, wyświetlony komunikat z przyczyną. \\
+        \hline
+    \end{tabularx}
+\end{frame}
+
+\begin{frame}{UC6: Logowanie przez SSO (2/2) -- Scenariusze i wyjątki}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.10}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{|U{3.5cm}|Y|}
+        \hline
+        \rowcolor{HeaderBg}
+        \textcolor{NavyPrimary}{\textbf{Scenariusz}} & \textcolor{NavyPrimary}{\textbf{Przebieg}} \\
+        \hline
+        Główny: logowanie udane &
+        1. \textbf{Użytkownik} klika „Zaloguj przez SSO”. \newline
+        2. \textbf{System} przekierowuje przeglądarkę do serwisu SSO uczelni. \newline
+        3. \textbf{Użytkownik} loguje się w serwisie SSO. \newline
+        4. \textbf{SSO uczelni} przekierowuje z powrotem do aplikacji z kodem autoryzacyjnym. \newline
+        5. \textbf{System} wymienia kod na profil użytkownika z bazy danych. \newline
+        6. \textbf{System} wydaje token sesji i wyświetla panel główny. \\
+        \hline
+        Następstwo & Kolejne żądania są autoryzowane tokenem bez udziału SSO. \\
+        \hline
+        Alternatywny: rezygnacja &
+        2a. \textbf{Użytkownik} anuluje logowanie na stronie SSO. \newline
+        2b. \textbf{System} wyświetla stronę główną bez zalogowania. \\
+        \hline
+    \end{tabularx}
+
+    \vspace{3pt}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{|U{4.3cm}|Y|}
+        \hline
+        \rowcolor{HeaderBg}
+        \textcolor{NavyPrimary}{\textbf{Wyjątki}} & \textcolor{NavyPrimary}{\textbf{Reakcja systemu}} \\
+        \hline
+        Błąd weryfikacji w SSO & Komunikat o wygasłym kodzie lub niedostępności SSO, brak tokenu. \\
+        \hline
+        Brak profilu w systemie & Dodanie użytkownika. \\
+        \hline
+        Błąd bazy danych & Transakcja wycofana, komunikat o błędzie. \\
+        \hline
+    \end{tabularx}
+\end{frame}
+
+\diagramframe{Diagram sekwencji UC6a -- Logowanie przez SSO i JIT Provisioning}{uc6a.png}
+
+\diagramframe{Diagram sekwencji UC6b -- Weryfikacja sesji JWT oraz wylogowanie}{uc6b.png}
+
+% ====================================================================
+% SEKCJA 7: SPECYFIKACJA API REST
+% ====================================================================
+\section{Specyfikacja endpointów API REST}
+
+\begin{frame}{Specyfikacja API REST (1/3) -- Uwierzytelnianie SSO i Katalog}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.16}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{@{} >{\bfseries\color{BlueBrand}}l M{0.27\textwidth} L{0.13\textwidth} Y @{}}
+        \toprule
+        \rowcolor{HeaderBg}
+        \textbf{\textcolor{NavyPrimary}{Metoda}} & \textbf{\textsf{\textcolor{NavyPrimary}{Endpoint}}} & \textbf{\textcolor{NavyPrimary}{Rola}} & \textbf{\textcolor{NavyPrimary}{Opis działania}} \\
+        \midrule
+        GET & /api/auth/sso/login & Publiczny & Inicjuje logowanie: generuje parametry \texttt{state} i \texttt{nonce} w Cache i zwraca adres przekierowania do SSO uczelni. \\
+        POST & /api/auth/sso/callback & Publiczny & Wymienia kod autoryzacyjny z SSO, weryfikuje \texttt{state}, synchronizuje konto użytkownika (JIT) i wydaje token sesji JWT. \\
+        POST & /api/auth/logout & Zalogowany & Wylogowanie: token trafia na czarną listę w pamięci Cache i przestaje być akceptowany. \\
+        GET & /api/sections & Zalogowany & Katalog sekcji aktywnego semestru z liczbą wolnych miejsc. Filtry: kurs (\texttt{query}), wykładowca (\texttt{lecturer\_id}), dzień (\texttt{day\_of\_week}). \\
+        GET & /api/schedule & Student & Tygodniowy plan zajęć zalogowanego studenta (zapisy o statusie \texttt{ENROLLED}). \\
+        \bottomrule
+    \end{tabularx}
+\end{frame}
+
+\begin{frame}{Specyfikacja API REST (2/3) -- Zapisy i Lista Oczekujących}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.16}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{@{} >{\bfseries\color{BlueBrand}}l M{0.30\textwidth} L{0.12\textwidth} Y @{}}
+        \toprule
+        \rowcolor{HeaderBg}
+        \textbf{\textcolor{NavyPrimary}{Metoda}} & \textbf{\textsf{\textcolor{NavyPrimary}{Endpoint}}} & \textbf{\textcolor{NavyPrimary}{Rola}} & \textbf{\textcolor{NavyPrimary}{Opis działania}} \\
+        \midrule
+        POST & /api/enrollments & Student & Zapis na wybraną sekcję. Weryfikuje okno zapisów, wymagania wstępne, kolizje terminów i limit miejsc pod blokadą \texttt{SELECT FOR UPDATE}. \\
+        DELETE & /api/enrollments/\{section\_id\} & Student & Wypisanie z sekcji (status \texttt{DROPPED}). Unieważnia Cache i wysyła do kolejki zdarzenie \texttt{SEAT\_FREED} uruchamiające workera. \\
+        POST & /api/waitlist & Student & Dołączenie do listy oczekujących po weryfikacji otwartego okna zapisów, braku miejsc oraz reguł \texttt{check\_rules}. Zwraca pozycję w kolejce FIFO. \\
+        DELETE & /api/waitlist/\{section\_id\} & Student & Wypisanie z listy oczekujących na daną sekcję (pozycje pozostałych osób wynikają z \texttt{created\_at}). \\
+        \bottomrule
+    \end{tabularx}
+\end{frame}
+
+\begin{frame}{Specyfikacja API REST (3/3) -- Administracja katalogiem}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.12}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{@{} >{\bfseries\color{BlueBrand}}l M{0.35\textwidth} L{0.13\textwidth} Y @{}}
+        \toprule
+        \rowcolor{HeaderBg}
+        \textbf{\textcolor{NavyPrimary}{Metoda}} & \textbf{\textsf{\textcolor{NavyPrimary}{Endpoint}}} & \textbf{\textcolor{NavyPrimary}{Rola}} & \textbf{\textcolor{NavyPrimary}{Opis działania}} \\
+        \midrule
+        POST & /api/sections & Administrator & Utworzenie nowej sekcji wraz z salą, prowadzącym, limitem miejsc i terminami zajęć (z walidacją braku kolizji sali). \\
+        PUT & /api/sections/\{section\_id\} & Administrator & Aktualizacja danych sekcji: sali, prowadzącego i przypisanych terminów zajęć (\texttt{schedules}). \\
+        PATCH & /api/sections/\{id\}/capacity & Administrator & Zmiana limitu miejsc (\texttt{update\_section\_capacity}). Zwiększenie limitu wysyła zdarzenie \texttt{SEAT\_FREED} do kolejki zadań. \\
+        PATCH & /api/terms/\{id\}/enrollment-window & Administrator & Ustawienie dat otwarcia (\texttt{enrollment\_start}) i zamknięcia (\texttt{enrollment\_end}) zapisów dla semestru. \\
+        POST/PUT & /api/courses (\{id\}) & Administrator & Tworzenie (\texttt{POST /api/courses}) lub edycja (\texttt{PUT /api/courses/\{id\}}) kursu wraz z ECTS i listą wymagań wstępnych (\texttt{create\_or\_update\_course}). \\
+        POST/PUT & /api/lecturers (\{id\}) & Administrator & Dodanie (\texttt{POST /api/lecturers}) lub edycja (\texttt{PUT /api/lecturers/\{id\}}) wykładowcy w katalogu (\texttt{create\_or\_update\_lecturer}). \\
+        \bottomrule
+    \end{tabularx}
+\end{frame}
+
+\begin{frame}{}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.18}
+    \rowcolors{2}{RowBg}{white}
+    \vfill % Wypełnia przestrzeń od góry, centrując treść w pionie
+    \centering
+    \Huge \textbf{Dziękujemy za uwagę!}
+    
+    \vfill % Wypełnia przestrzeń od dołu
+\end{frame}
+
+\end{document}

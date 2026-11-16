@@ -1,252 +1,427 @@
-% Prezentacja - etap 5 (18.XI). Skrypt wystąpienia: ../SKRYPT.md.
+% Etap 5 - prezentacja w stylu otrzymanego projektu (preambuła z przejety_projekt/main.tex).
 % Kompilacja: ../../.tools/bin/tectonic prezentacja.tex
-\documentclass[aspectratio=169,11pt]{beamer}
+\documentclass[aspectratio=169, 10pt, xcolor=table]{beamer}
 
-\usetheme[progressbar=frametitle,numbering=fraction]{metropolis}
-\usepackage[polish]{babel}
+\usepackage{iftex}
+\ifPDFTeX
+    \usepackage[utf8]{inputenc}
+    \usepackage[T1]{fontenc}
+    \usepackage[polish]{babel}
+    \usepackage{lmodern}
+    \renewcommand{\familydefault}{\sfdefault}
+\else
+    \usepackage{fontspec}
+    \usepackage[polish]{babel}
+\fi
+
 \usepackage{booktabs}
 \usepackage{tabularx}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{graphicx}
 \usepackage{listings}
-\usepackage{xcolor}
-\usepackage{amssymb}
-\usepackage{tikz}
-\usetikzlibrary{arrows.meta,positioning}
+\graphicspath{{../diagramy/}{../przejete/}{img/}}
+\lstset{basicstyle=\ttfamily\scriptsize, columns=fullflexible, keepspaces=true, backgroundcolor=\color{BlockBg},
+  extendedchars=true, literate={ą}{{\k{a}}}1 {ę}{{\k{e}}}1 {ó}{{\'o}}1 {ś}{{\'s}}1 {ł}{{\l}}1 {ż}{{\.z}}1 {ź}{{\'z}}1 {ć}{{\'c}}1 {ń}{{\'n}}1 {→}{{$\rightarrow$}}1 {–}{{--}}1}
 
-\graphicspath{{../diagramy/}{img/}}
-\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+% Motyw i płaska, nowoczesna stylistyka
+\usetheme{Madrid}
+\useinnertheme{rectangles}
+\usefonttheme{professionalfonts}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{blocks}[rounded][shadow=false]
+\setbeamertemplate{itemize items}[square]
+\setbeamertemplate{enumerate items}[square]
+\setbeamertemplate{section in toc}[square]
+\setbeamertemplate{caption}[numbered]
 
-\definecolor{ok}{HTML}{11804B}
-\definecolor{bad}{HTML}{C0392B}
-\definecolor{warn}{HTML}{A15C00}
-\definecolor{acc}{HTML}{1F5EFF}
-\newcommand{\good}[1]{\textcolor{ok}{#1}}
-\newcommand{\bad}[1]{\textcolor{bad}{#1}}
+% Zmniejszenie marginesów bocznych dla lepszego wykorzystania panoramy 16:9
+\setbeamersize{text margin left=0.7cm, text margin right=0.7cm}
 
-\lstset{
-  basicstyle=\ttfamily\footnotesize,
-  keywordstyle=\color{acc}\bfseries,
-  commentstyle=\color{gray},
-  language=Python,
-  columns=fullflexible,
-  keepspaces=true,
-  frame=none,
-  backgroundcolor=\color{black!4},
-  xleftmargin=4pt, framexleftmargin=4pt,
-  extendedchars=true,
-  literate={ą}{{\k{a}}}1 {ę}{{\k{e}}}1 {ó}{{\'o}}1 {ś}{{\'s}}1 {ł}{{\l}}1 {ż}{{\.z}}1 {ź}{{\'z}}1 {ć}{{\'c}}1 {ń}{{\'n}}1,
+% Nowoczesna paleta barw
+\definecolor{NavyPrimary}{HTML}{0F172A}
+\definecolor{BlueBrand}{HTML}{1E3A8A}
+\definecolor{BlueAccent}{HTML}{2563EB}
+\definecolor{SlateDark}{HTML}{1E293B}
+\definecolor{SlateMuted}{HTML}{475569}
+\definecolor{RowBg}{HTML}{F8FAFC}
+\definecolor{HeaderBg}{HTML}{E2E8F0}
+\definecolor{BlockBg}{HTML}{F1F5F9}
+\definecolor{TealHeader}{HTML}{0F766E}
+\definecolor{TealBg}{HTML}{F0FDFA}
+\definecolor{AlertHeader}{HTML}{B91C1C}
+\definecolor{AlertBg}{HTML}{FEF2F2}
+
+\setbeamercolor{palette primary}{bg=NavyPrimary, fg=white}
+\setbeamercolor{palette secondary}{bg=BlueBrand, fg=white}
+\setbeamercolor{palette tertiary}{bg=BlueAccent, fg=white}
+\setbeamercolor{structure}{fg=BlueBrand}
+\setbeamercolor{normal text}{fg=SlateDark, bg=white}
+\setbeamercolor{title}{bg=NavyPrimary, fg=white}
+\setbeamercolor{frametitle}{bg=NavyPrimary, fg=white}
+\setbeamercolor{framesubtitle}{fg=HeaderBg}
+
+\setbeamercolor{block title}{bg=BlueBrand, fg=white}
+\setbeamercolor{block body}{bg=BlockBg, fg=SlateDark}
+\setbeamercolor{block title alerted}{bg=AlertHeader, fg=white}
+\setbeamercolor{block body alerted}{bg=AlertBg, fg=SlateDark}
+\setbeamercolor{block title example}{bg=TealHeader, fg=white}
+\setbeamercolor{block body example}{bg=TealBg, fg=SlateDark}
+
+% Hierarchia typograficzna
+\setbeamerfont{title}{size=\LARGE, series=\bfseries}
+\setbeamerfont{subtitle}{size=\normalsize, series=\mdseries}
+\setbeamerfont{frametitle}{size=\large, series=\bfseries}
+\setbeamerfont{framesubtitle}{size=\footnotesize, series=\mdseries}
+\setbeamerfont{block title}{size=\footnotesize, series=\bfseries}
+\setbeamerfont{footline}{size=\tiny}
+
+% Konfiguracja tabel (zmniejszony domyślny arraystretch i tabcolsep)
+\renewcommand{\arraystretch}{1.18}
+\setlength{\tabcolsep}{5pt}
+\arrayrulecolor{BlueBrand}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{M}[1]{>{\raggedright\arraybackslash\ttfamily\color{BlueBrand}}p{#1}}
+\newcolumntype{T}[1]{>{\raggedright\arraybackslash\ttfamily\color{TealHeader}}p{#1}}
+\newcolumntype{U}[1]{>{\raggedright\arraybackslash\bfseries\color{BlueBrand}}p{#1}}
+
+% Makro do slajdów z pełnoekranowym diagramem (bez wychodzenia poza textwidth)
+\newcommand{\diagramframe}[2]{
+\begin{frame}[plain]
+    \vspace{0.15cm}
+    \noindent\colorbox{NavyPrimary}{%
+        \parbox{\dimexpr\textwidth-2\fboxsep\relax}{%
+            \vspace{2pt}\hspace{4pt}{\normalsize\bfseries\textcolor{white}{#1}}\vspace{2pt}%
+        }%
+    }
+    \vfill
+    \centering
+    \IfFileExists{#2}{%
+        \makebox[\textwidth][c]{%
+            \includegraphics[width=0.98\textwidth, height=0.82\textheight, keepaspectratio]{#2}%
+        }%
+    }{%
+        \fcolorbox{BlueBrand}{BlockBg}{%
+            \parbox[c][0.68\textheight][c]{0.90\textwidth}{%
+                \centering
+                {\large \textbf{\textcolor{BlueBrand}{Miejsce na diagram: \texttt{\detokenize{#2}}}}}\par\vspace{8pt}
+                {\footnotesize \textcolor{SlateMuted}{Schemat wizualny pliku \texttt{\detokenize{#2}} (wyeksportowany w układzie poziomym 16:9 / PDF / PNG).}}
+            }%
+        }%
+    }
+    \vfill
+\end{frame}
 }
 
-% pełnoekranowy diagram
-\newcommand{\fullimage}[2][0.98]{%
-  \begin{frame}[plain]
-    \begin{tikzpicture}[remember picture, overlay]
-      \node at (current page.center) {\includegraphics[width=0.99\paperwidth,height=#1\paperheight,keepaspectratio]{#2}};
-    \end{tikzpicture}
-  \end{frame}}
 
-\title{System zapisów na zajęcia -- USOSv2}
-\subtitle{Etap 5: projekt końcowy -- zapisy według preferencji, brak kolizji}
-\author{Kamil Kręcigłowa \and Bartosz Królik \and Krzysztof Krówka}
-\institute{Inżynieria Oprogramowania, zima 2026/2027}
-\date{18 listopada 2026}
+% Slajd "przed -> po": dwa diagramy obok siebie
+\newcommand{\przedpo}[4][0.49]{
+\begin{frame}{#2}
+    \begin{columns}[T, onlytextwidth]
+        \begin{column}{#1\textwidth}
+            \centering\textbf{\textcolor{SlateMuted}{Przed -- otrzymany projekt}}\\[3pt]
+            \includegraphics[width=\linewidth, height=0.74\textheight, keepaspectratio]{#3}
+        \end{column}
+        \begin{column}{\dimexpr0.98\textwidth-#1\textwidth\relax}
+            \centering\textbf{\textcolor{TealHeader}{Po -- etap 5}}\\[3pt]
+            \includegraphics[width=\linewidth, height=0.74\textheight, keepaspectratio]{#4}
+        \end{column}
+    \end{columns}
+\end{frame}
+}
+\newcommand{\nowe}[1]{\textcolor{TealHeader}{\textbf{#1}}}
+
+\title[System zapisu na zajęcia]{System zapisu na zajęcia}
+\subtitle{Projekt końcowy (Etap 5) -- rozwinięcie otrzymanego projektu}
+\author[]{Kamil Kręcigłowa, \and Bartosz Królik, \and Krzysztof Krówka}
+\institute[]{}
+\date[]{18 listopada 2026}
 
 \begin{document}
 
-\maketitle
+\begin{frame}
+    \titlepage
+\end{frame}
 
-% 1 ------------------------------------------------------------------ 0:50
-\begin{frame}{Zadanie etapu 5 i punkt wyjścia}
-  \small
-  \begin{columns}[T]
-    \begin{column}{0.5\textwidth}
-      \textbf{Nowa funkcjonalność}\\[2pt]
-      \footnotesize zapisy nie ,,kto pierwszy'', lecz według \textbf{preferencji}: student nadaje przedmiotom \textbf{wagi}, system \textbf{optymalizuje} przydział; wagi można \textbf{zmieniać w trakcie zapisów}.\\[8pt]
-      \small\textbf{Testy}\\[2pt]
-      \footnotesize brak kolizji w planie studenta przy zapisie, \textbf{zmianie harmonogramu w trakcie zapisów} i \textbf{przydziale z kolejki}.
-    \end{column}
-    \begin{column}{0.46\textwidth}
-      \textbf{Punkt wyjścia}\\[2pt]
-      \footnotesize z otrzymanego projektu mieliśmy tylko slajdy (Celery, Redis, kolejka FIFO) -- bez kodu.\\[4pt]
-      Rozszerzenie zbudowaliśmy na \textbf{naszym działającym systemie} z etapów 1--3: FastAPI, PostgreSQL, worker, React.\\[4pt]
-      \good{Wszystko poniżej jest zaimplementowane i przetestowane}: \textbf{96 testów}, w tym 61 nowych.
-    \end{column}
-  \end{columns}
+\begin{frame}{Plan prezentacji}
+    \footnotesize
+    \tableofcontents
+\end{frame}
+
+% ====================================================================
+\section{Punkt wyjścia i analiza otrzymanego projektu}
+
+% 1 ------------------------------------------------------------------ 0:45
+\begin{frame}{Punkt wyjścia: otrzymany projekt i nowe wymagania}
+    \footnotesize
+    \begin{columns}[T, onlytextwidth]
+        \begin{column}{0.48\textwidth}
+            \begin{block}{Otrzymany projekt (etap 3 innej grupy)}
+                \begin{itemize}
+                    \item React, Nginx, FastAPI, SSO (OIDC), PostgreSQL, Redis, Celery
+                    \item serwisy: \texttt{Enrollment}, \texttt{WaitingList}, \texttt{Catalog}, \texttt{EnrollmentRuleEngine}, \texttt{AuditLog}
+                    \item UC1--UC6 z metryczkami, 10 diagramów sekwencji, ER (11 tabel)
+                \end{itemize}
+                \textbf{Zostawiamy} architekturę, nazwy i format dokumentacji -- rozszerzenie ma być naturalną kontynuacją.
+            \end{block}
+        \end{column}
+        \begin{column}{0.48\textwidth}
+            \begin{exampleblock}{Nowe wymagania}
+                \begin{itemize}
+                    \item \textbf{Testy:} brak kolizji w planie przy zapisie, \textbf{zmianie harmonogramu w trakcie zapisów} i \textbf{awansie z kolejki}
+                    \item \textbf{Funkcjonalność:} zapisy według \textbf{preferencji} -- wagi przedmiotów, optymalny przydział, zmiana wag w trakcie zapisów
+                \end{itemize}
+            \end{exampleblock}
+            \begin{alertblock}{Pierwszy krok}
+                Przeszliśmy po każdym diagramie sekwencji i szukaliśmy przepleceń transakcji, w których student dostaje kolidujące zajęcia.
+            \end{alertblock}
+        \end{column}
+    \end{columns}
 \end{frame}
 
 % 2 ------------------------------------------------------------------ 1:45
-\begin{frame}{Tura preferencyjna -- jak to działa}
-  \begin{columns}[T]
-    \begin{column}{0.52\textwidth}
-      \scriptsize
-      \begin{enumerate}
-        \item Dziekanat tworzy turę w trybie \texttt{PREFERENCES} z \textbf{pulą 100 pkt}.
-        \item Student rozdziela punkty między przedmioty i układa akceptowane grupy w kolejności; \textbf{zmienia to dowolnie często} do zamknięcia tury.
-        \item Co 5 min worker liczy \textbf{symulację}: student widzi przewidywany przydział i powody odmów, więc może zmienić wagi.
-        \item Po zamknięciu worker \textbf{raz} wykonuje przydział końcowy, a wynik trafia do planów.
-      \end{enumerate}
-      \vspace{2pt}
-      \textbf{Wspólna pula} wymusza wybór, co jest najcenniejsze, i daje wszystkim równe szanse. Remis rozstrzyga losowanie z \textbf{zapisanym ziarnem}, więc każdy wynik da się odtworzyć.
-    \end{column}
-    \begin{column}{0.46\textwidth}
-      \centering\includegraphics[width=\textwidth,height=0.8\textheight,keepaspectratio]{ui_preferencje.png}
-    \end{column}
-  \end{columns}
+\begin{frame}{Analiza: co trzeba było zmienić w otrzymanych schematach}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.12}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{|L{0.6cm}|L{2.2cm}|Y|Y|}
+        \hline
+        \rowcolor{HeaderBg}
+        \textbf{\#} & \textbf{Gdzie} & \textbf{Problem -- scenariusz kolizji} & \textbf{Zmiana} \\
+        \hline
+        Z1 & UC1a & \texttt{check\_rules} przed \texttt{BEGIN}, blokada tylko sekcji: student w dwóch kartach zapisuje się naraz na S1 i S2 o tej samej porze -- \textbf{oba zapisy przechodzą} & blokada studenta na początku transakcji, reguły w transakcji \\
+        \hline
+        Z2 & UC2 & awans blokuje sekcję, nie kandydata: kandydat równolegle zapisuje się na kolidującą sekcję & blokada kandydata \texttt{NOWAIT} + istniejący Celery retry \\
+        \hline
+        Z3 & \texttt{CatalogService} & zmiana terminów sprawdza tylko salę -- kolizja u zapisanych powstaje ,,po cichu'' & \nowe{UC11}: sprawdzenie planów zapisanych, \texttt{STUDENT\_CONFLICT} \\
+        \hline
+        Z4 & UC1a + UC11 & zapis czyta terminy sekcji bez jej blokady -- równoległa zmiana terminu & blokada sekcji \textbf{przed} \texttt{check\_rules} \\
+        \hline
+        Z5 & \texttt{overlaps\_with} & czy 9:30 / 9:30 to kolizja? & doprecyzowanie: \texttt{[start, end)} \\
+        \hline
+        Z6 & -- & brak wyroczni do testów & zapytanie kontrolne \texttt{kolizje\_w\_planach} (SQL, niezależne) \\
+        \hline
+    \end{tabularx}\\[4pt]
+    Funkcjonalność: \textbf{tryb zapisów na semestrze} (okno zapisów już jest per semestr), tabele preferencji, optymalizator, \textbf{Celery Beat} (Celery już jest w projekcie).
 \end{frame}
 
-% 3 ------------------------------------------------------------------ 2:20
-\fullimage{przypadki_uzycia_preferencje.png}
+% ====================================================================
+\section{Zmiany schematów: przed i po}
 
-% 4 ------------------------------------------------------------------ 3:15
-\begin{frame}{Optymalizator przydziału}
-  \scriptsize
-  \textbf{Cel:} $\max \sum u$, \quad $u = \text{waga} \cdot \text{średnia}\big(\max(0.5,\; 1 - 0.1\,(\text{ranga}-1))\big)$ \quad -- waga decyduje \emph{czy}, ranga -- \emph{którą grupę}.\\
-  \textbf{Ograniczenia} jak przy zapisie: limity miejsc, \textbf{brak kolizji}, wymagania wstępne, jedna grupa danego typu, wykład + lab: wszystko albo nic.\\[3pt]
-  Kolizje czynią problem NP-trudnym, więc stosujemy heurystykę o \textbf{zmierzonej} jakości:
-  \begin{enumerate}
-    \item wykonalne kombinacje grup każdego zgłoszenia (inne odpadają z powodem),
-    \item zachłannie: malejąco po wadze, remis -- los z ziarnem,
-    \item poprawa lokalna: przeniesienie kogoś do jego innej grupy (łańcuch do 2), zwolnienie tańszego przydziału, wycofanie ruchu, który nie zwiększa sumy.
-  \end{enumerate}
-  \begin{tabularx}{\textwidth}{@{}L>{\raggedleft}p{2.6cm}>{\raggedleft}p{2.2cm}>{\raggedleft\arraybackslash}p{2.8cm}@{}}
-    \toprule
-    \textbf{1000 losowych instancji vs przegląd zupełny} & \textbf{średnio optimum} & \textbf{najgorszy} & \textbf{dokładnie optimum} \\
-    \midrule
-    sam algorytm zachłanny & 98,1\,\% & \bad{55\,\%} & 83,9\,\% \\
-    zachłanny + poprawa lokalna & \good{99,8\,\%} & 80\,\% & \good{97,1\,\%} \\
-    \bottomrule
-  \end{tabularx}\\[3pt]
-  Skala kierunku: 1000 studentów $\times$ 6 przedmiotów -- ok.\ \textbf{7\,s}. Przed zapisem \texttt{verify()} niezależnie sprawdza wynik.
+% 3 ------------------------------------------------------------------ 2:15
+\przedpo{Architektura -- przed i po}{../przejete/architektura.png}{../diagramy/architektura.png}
+
+% 4 ------------------------------------------------------------------ 2:45
+\przedpo{Komponenty -- przed i po}{../przejete/komponenty.png}{../diagramy/komponenty.png}
+
+% 5 ------------------------------------------------------------------ 3:25
+\przedpo[0.5]{UC1a: zapis na sekcję -- przed i po (Z1, Z4)}{../przejete/uc1a.png}{../diagramy/uc1a.png}
+
+% 6 ------------------------------------------------------------------ 3:50
+\przedpo[0.5]{UC2: awans z kolejki -- przed i po (Z2)}{../przejete/uc2.png}{../diagramy/uc2.png}
+
+% 7 ------------------------------------------------------------------ 4:15
+\przedpo[0.36]{Przypadki użycia -- przed i po (nowe UC7--UC13)}{../przejete/use_case.png}{../diagramy/use_case_student.png}
+
+% ====================================================================
+\section{Nowa funkcjonalność: zapisy według preferencji}
+
+% 8 ------------------------------------------------------------------ 5:00
+\begin{frame}{Tura preferencji -- przebieg i decyzje}
+    \footnotesize
+    \begin{columns}[T, onlytextwidth]
+        \begin{column}{0.52\textwidth}
+            \begin{block}{Przebieg}
+                \begin{enumerate}
+                    \item Dziekanat: semestr w trybie \texttt{PREFERENCES}, pula \textbf{100 pkt} (UC12).
+                    \item Student: wagi kursów + sekcje w kolejności; \textbf{zmienia dowolnie często} do końca okna (UC7).
+                    \item Celery Beat co 5 min: \textbf{symulacja} -- student widzi przewidywany przydział i powody odmów (UC10, UC8).
+                    \item Po końcu okna: \textbf{jednorazowy} przydział końcowy (UC9).
+                    \item Potem opcjonalnie zapisy uzupełniające w trybie FCFS.
+                \end{enumerate}
+            \end{block}
+        \end{column}
+        \begin{column}{0.46\textwidth}
+            \begin{exampleblock}{Decyzje}
+                \begin{itemize}
+                    \item \textbf{wspólna pula} -- waga coś znaczy, równe szanse
+                    \item \textbf{wynik po oknie, w trakcie symulacja} -- inaczej znowu ,,kto pierwszy''
+                    \item remis -- \textbf{los z zapisanym ziarnem} (odtwarzalny)
+                    \item \textbf{te same reguły} co przy zapisie (limit, kolizje, wymagania)
+                    \item tryb na semestrze -- najmniejsza zmiana modelu
+                \end{itemize}
+            \end{exampleblock}
+        \end{column}
+    \end{columns}
 \end{frame}
 
-% 5 ------------------------------------------------------------------ 4:00
-\fullimage[0.92]{sekwencja_przydzial_skrot.png}
+% 9 ------------------------------------------------------------------ 5:35
+\przedpo[0.44]{Model danych -- przed i po}{../przejete/er_diagram.png}{../diagramy/er.png}
 
-% 6 ------------------------------------------------------------------ 4:35
-\begin{frame}{Model danych -- rozszerzenie (migracja 0002)}
-  \begin{columns}[c]
-    \begin{column}{0.62\textwidth}
-      \centering\includegraphics[width=\textwidth,height=0.85\textheight,keepaspectratio]{er_preferencje.png}
-    \end{column}
-    \begin{column}{0.36\textwidth}
-      \scriptsize
-      \begin{itemize}
-        \item \texttt{course\_preference}: waga; suma $\le$ pula -- pod blokadą studenta
-        \item \texttt{section\_preference}: ranga; FK złożony do zgłoszenia
-        \item \texttt{allocation\_run}: PREVIEW / FINAL, ziarno, statystyki; \textbf{UNIQUE: jeden FINAL na turę}
-        \item \texttt{allocation\_result}: każda odmowa ma powód (\texttt{CHECK})
-        \item \texttt{section.schedule\_version}, \texttt{enrollment.source = ALLOCATION}
-      \end{itemize}
-    \end{column}
-  \end{columns}
+% 10 ----------------------------------------------------------------- 6:05
+\diagramframe{UC9 / UC10 -- przydział według preferencji (Celery Beat)}{../diagramy/uc9.png}
+
+% 11 ----------------------------------------------------------------- 6:50
+\begin{frame}{Algorytm \texttt{PreferenceAllocator} i wyniki prototypu}
+    \footnotesize
+    \textbf{Cel:} $\max \sum u$, \quad $u = \text{waga} \cdot \max(0.5,\; 1 - 0.1\,(\text{ranga}-1))$ \quad -- waga decyduje \emph{czy}, ranga -- \emph{którą sekcję}.\\
+    Kolizje czynią problem NP-trudnym $\Rightarrow$ heurystyka o zmierzonej jakości:
+    \begin{enumerate}
+        \item wykonalne sekcje (reguły jak w \texttt{check\_rules}), \quad 2. zachłannie wg wag, remis -- los (ziarno),
+        \item[3.] poprawa lokalna: przeniesienie kogoś do innej akceptowanej sekcji (łańcuch do 2), zwolnienie najtańszego przydziału, wycofanie ruchu, który nie poprawia sumy.
+    \end{enumerate}
+    \vspace{2pt}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{|Y|L{2.6cm}|L{2.6cm}|}
+        \hline
+        \rowcolor{HeaderBg}
+        \textbf{Prototyp (Python): 1000 losowych instancji vs przegląd zupełny} & \textbf{sam zachłanny} & \textbf{z poprawą lokalną} \\
+        \hline
+        średnio \% optimum & 97,9\,\% & \nowe{99,9\,\%} \\
+        \hline
+        instancje dokładnie optymalne & 80,8\,\% & \nowe{97,8\,\%} \\
+        \hline
+        1000 studentów $\times$ 6 kursów, 4500 miejsc & -- & \nowe{3\,s}, wszystkie miejsca zajęte \\
+        \hline
+    \end{tabularx}\\[3pt]
+    Przed zapisem wyniku \texttt{verify()} niezależnie sprawdza limity, kolizje i wymagania.
 \end{frame}
 
-% 7 ------------------------------------------------------------------ 5:20
-\begin{frame}{Testy wykryły dwie luki -- zmiana terminu w trakcie tury}
-  \footnotesize
-  W etapie 3 sami wpisaliśmy je jako ,,znane ograniczenia'':
-  \begin{enumerate}
-    \item dziekanat przenosił termin grupy \bad{bez sprawdzania planów zapisanych studentów},
-    \item zapis brał terminy z cache procesu (do 10\,s) -- \bad{inny proces API mógł przepuścić kolizję}.
-  \end{enumerate}
-  \textbf{Poprawki (UC32):}
-  \begin{itemize}
-    \item zmiana terminu: blokady sala/prowadzący $\rightarrow$ grupa $\rightarrow$ zapisani studenci (\texttt{NOWAIT}); kolizja u kogokolwiek $\Rightarrow$ \texttt{409 STUDENT\_CONFLICT} z listą indeksów,
-    \item \texttt{section.schedule\_version}: zapis i awans z kolejki porównują wersję \textbf{pod blokadą grupy} -- różnica $\Rightarrow$ świeże terminy i ponowne sprawdzenie,
-    \item oczekujący dostają powiadomienie; przy awansie kolizja $\Rightarrow$ \texttt{SKIPPED} z powodem,
-    \item audyt niezmienników: \textbf{kolizja w planie} -- niezależna implementacja w SQL (wyrocznia testów, monitoring co minutę).
-  \end{itemize}
-\end{frame}
+% ====================================================================
+\section{Testy: brak kolizji}
 
-% 8 ------------------------------------------------------------------ 5:55
-\fullimage[0.92]{sekwencja_zmiana_terminu_skrot.png}
+% 12 ----------------------------------------------------------------- 7:20
+\diagramframe{UC11 -- zmiana harmonogramu w trakcie zapisów (nowy)}{../diagramy/uc11.png}
 
-% 9 ------------------------------------------------------------------ 6:45
+% 13 ----------------------------------------------------------------- 8:10
 \begin{frame}[fragile]{Scenariusze testowe: przygotowanie -- test -- weryfikacja}
-  \begin{columns}[T]
-    \begin{column}{0.5\textwidth}
-\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
-# K14: stary termin w cache innego procesu
-# 1. przygotowanie
-a = section(AAA, pon 10:00)
-b = section(BBB, wt 10:00)
-enroll(st, a)
-load_target(b)        # cache: wtorek
-update_meeting(b, pon 10:30)
-                      # cache nie czyszczony
-# 2. test
-enroll(st, b)
-# 3. weryfikacja
--> 409 CONFLICT
-plan(st) == {AAA L01}
-audit.violations() == []
+    \begin{columns}[T, onlytextwidth]
+        \begin{column}{0.53\textwidth}
+\begin{lstlisting}
+K8. Równoległe zapisy tego samego studenta
+1. PRZYGOTOWANIE
+   sekcja(201, IO, 15, [PON 10:00-11:30])
+   sekcja(202, BD, 15, [PON 10:00-11:30])
+2. TEST (20 powtórzeń)
+   (r1, r2) = równolegle(
+       EnrollmentService.enroll(101, 201, ip),
+       EnrollmentService.enroll(101, 202, ip))
+3. WERYFIKACJA
+   {r1.status, r2.status}
+       == {ENROLLED, RULE_VIOLATION}
+   kolizje_w_planach(1) == []
 \end{lstlisting}
-    \end{column}
-    \begin{column}{0.48\textwidth}
-      \scriptsize
-      \begin{tabular}{@{}p{4.3cm}r@{}}
-        \toprule
-        \textbf{grupa} & \textbf{testów} \\
-        \midrule
-        K -- kolizje (zapis, listy, awans, zmiana terminu, wyścigi) & 23 \\
-        P -- tura preferencyjna (baza + API) & 17 \\
-        A -- optymalizator (jakość, skala) & 21 \\
-        etap 3 & 35 \\
-        \midrule
-        \textbf{razem} -- \good{wszystkie przechodzą} & \textbf{96} \\
-        \bottomrule
-      \end{tabular}\\[6pt]
-      Wyścigi powtarzane 5--12 razy. Kontrola mutacyjna: wyłączenie wersji harmonogramu $\Rightarrow$ \bad{K13--K16 padają}.\\[3pt]
-      Wszystkie scenariusze z wywołaniami: \texttt{etap5/TESTY.md}.
-    \end{column}
-  \end{columns}
+            {\scriptsize Na otrzymanym projekcie ten test \textbf{nie przechodzi} (oba ENROLLED) -- po zmianie Z1 przechodzi.}
+        \end{column}
+        \begin{column}{0.44\textwidth}
+            \scriptsize
+            \rowcolors{2}{RowBg}{white}
+            \begin{tabularx}{\linewidth}{|Y|L{0.9cm}|}
+                \hline
+                \rowcolor{HeaderBg}
+                \textbf{Grupa} & \textbf{Liczba} \\
+                \hline
+                K -- kolizje: zapis, lista, \textbf{awans z kolejki}, \textbf{zmiana harmonogramu}, wyścigi & 14 \\
+                \hline
+                P -- zapisy według preferencji & 12 \\
+                \hline
+                A -- algorytm (\textbf{zaimplementowane}, przechodzą) & 8 \\
+                \hline
+            \end{tabularx}\\[5pt]
+            \textbf{Wyrocznia:} \texttt{kolizje\_w\_planach(term)} -- zapytanie SQL niezależne od \texttt{EnrollmentRuleEngine}, sprawdzane po każdym teście (K14 dowodzi, że wykrywa kolizję).\\[3pt]
+            Wszystkie scenariusze: \texttt{etap5/TESTY.md}.
+        \end{column}
+    \end{columns}
 \end{frame}
 
-% 10 ----------------------------------------------------------------- 7:00
-\begin{frame}[standout]
-  Dziękujemy -- pytania?\\[8pt]
-  \normalsize dokumentacja: \texttt{etap5/README.md}, \texttt{etap5/TESTY.md}\\
-  dalej: slajdy zapasowe
+\begin{frame}{}
+    \vfill
+    \centering
+    \Huge \textbf{Dziękujemy za uwagę!}\\[10pt]
+    \normalsize dokumentacja: \texttt{README.md}, \texttt{TESTY.md} \quad -- \quad dalej: slajdy zapasowe
+    \vfill
 \end{frame}
 
+% ====================================================================
 \appendix
-\section{Slajdy zapasowe}
+\section*{Slajdy zapasowe}
 
-\fullimage{architektura.png}
-\fullimage{aktywnosc_przydzial.png}
-\fullimage{sekwencja_przydzial.png}
-\fullimage{sekwencja_zmiana_terminu.png}
-\fullimage[0.94]{sekwencja_preferencje.png}
-\fullimage{klasy_przydzial.png}
-\fullimage{klasy_serwisy.png}
-\fullimage{klasy_domena.png}
-\fullimage{klasy_infrastruktura.png}
-\fullimage{przypadki_uzycia_student.png}
-\fullimage{przypadki_uzycia_administracja.png}
-\fullimage{er.pdf}
-\fullimage[0.94]{sekwencja_zapis.png}
-\fullimage[0.94]{sekwencja_wypis_awans.png}
+\przedpo[0.5]{UC1b: lista oczekujących -- przed i po}{../przejete/uc1b.png}{../diagramy/uc1b.png}
+\diagramframe{UC7 / UC8 -- zgłoszenie preferencji i podgląd przydziału (nowy)}{../diagramy/uc7.png}
+\diagramframe{Przypadki użycia (2/2) -- administrator i zegar}{../diagramy/use_case_admin.png}
+\diagramframe{Algorytm przydziału -- diagram aktywności}{../diagramy/aktywnosc_przydzial.png}
+\diagramframe{Projekt klas -- serwisy (zmiany zaznaczone)}{../diagramy/klasy_serwisy.png}
+\diagramframe{Projekt klas -- modele, enumy, DTO}{../diagramy/klasy_modele.png}
 
-\begin{frame}{Panel dziekanatu: tury i raport przydziału}
-  \centering\includegraphics[width=\textwidth,height=0.82\textheight,keepaspectratio]{ui_tury.png}
+\begin{frame}{Serwisy nowe -- \texttt{PreferenceService} i \texttt{AllocationService}}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.15}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{|M{5.4cm}|L{2.6cm}|Y|}
+        \hline
+        \rowcolor{HeaderBg}
+        \textbf{Sygnatura metody} & \textbf{Typ zwracany} & \textbf{Opis funkcjonalności} \\
+        \hline
+        save\_preferences(student\_id, term\_id, prefs, ip) & PreferenceSaveResultDTO & Semestr \texttt{FOR SHARE}, student \texttt{FOR UPDATE}; okno i tryb, \texttt{validate}, zastąpienie zgłoszenia, audyt, ostrzeżenia z \texttt{EnrollmentRuleEngine}. \\
+        \hline
+        get\_preferences(student\_id, term\_id) & list[PreferenceDTO] & Bieżące zgłoszenie (wagi, sekcje wg rang). \\
+        \hline
+        validate(prefs, term, sections) & list[RuleViolationDTO] & Pula, waga $\ge$ 1, sekcje z kursu i semestru, duplikaty, $\le$ 20 kursów. \\
+        \hline
+        run\_allocation(term\_id, kind, seed=None) & AllocationRunDTO & FINAL: blokady semestr $\rightarrow$ studenci $\rightarrow$ sekcje, \texttt{allocate} + \texttt{verify}, zapisy \texttt{ALLOCATION}; PREVIEW: bez blokad i zapisów. \\
+        \hline
+        get\_student\_allocation(student\_id, term\_id) & AllocationViewDTO & FINAL albo najnowszy PREVIEW z powodami odmów. \\
+        \hline
+        get\_report(term\_id) & AllocationReportDTO & Statystyki, jakość względem górnego ograniczenia, popyt na kursy. \\
+        \hline
+    \end{tabularx}
+\end{frame}
+
+\begin{frame}{API REST -- nowe i zmienione endpointy}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.12}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{@{} >{\bfseries\color{BlueBrand}}l M{0.33\textwidth} L{0.12\textwidth} Y @{}}
+        \toprule
+        \rowcolor{HeaderBg}
+        \textbf{Metoda} & \textbf{Endpoint} & \textbf{Rola} & \textbf{Opis działania} \\
+        \midrule
+        GET / PUT & /api/preferences & Student & Odczyt / zastąpienie zgłoszenia (UC7). \\
+        GET & /api/allocation?term\_id= & Student & Przewidywany / końcowy przydział (UC8). \\
+        POST & /api/admin/terms/\{id\}/allocation[/preview] & Administrator & Przydział końcowy / symulacja na żądanie (UC9, UC10). \\
+        GET & /api/admin/terms/\{id\}/allocation/report & Administrator & Raport (UC13). \\
+        PATCH & /api/terms/\{id\}/enrollment-window & Administrator & \textbf{Zmieniony:} + \texttt{mode}, \texttt{points\_budget} (UC12). \\
+        PUT & /api/sections/\{section\_id\} & Administrator & \textbf{Zmieniony:} 409 \texttt{STUDENT\_CONFLICT} (UC11). \\
+        \bottomrule
+    \end{tabularx}
 \end{frame}
 
 \begin{frame}{Co może pójść nie tak -- i co wtedy}
-  \scriptsize
-  \begin{tabularx}{\textwidth}{@{}>{\raggedright}p{5.2cm}L@{}}
-    \toprule
-    \textbf{Sytuacja} & \textbf{Reakcja} \\
-    \midrule
-    budżet przekroczony, obca grupa, przedmiot 2$\times$ & 409 z kodem; poprzednie zgłoszenie bez zmian (jedna transakcja) \\
-    tura zamyka się w chwili zapisu preferencji & \texttt{FOR SHARE} na turze: zgłoszenie wchodzi do przydziału albo \texttt{ROUND\_CLOSED} (test P5) \\
-    brak zaliczenia / kolizja z planem w zgłoszeniu & przyjęte z ostrzeżeniem; przydział sprawdzi ponownie \\
-    dwie instancje workera, worker + dziekanat & blokada tury + \texttt{UNIQUE} FINAL $\Rightarrow$ \texttt{ALREADY\_ALLOCATED} \\
-    awaria workera w trakcie przydziału & ROLLBACK, tura dalej ,,bez FINAL'' -- przydział od nowa \\
-    miejsca zajęte / termin zmieniony po zgłoszeniu & przydział pod blokadami na stanie z chwili wykonania (P9, P12) \\
-    błąd w optymalizatorze & \texttt{verify()} + \texttt{CHECK} w bazie $\Rightarrow$ nic nie zapisano \\
-    zmiana terminu koliduje u zapisanego & \texttt{STUDENT\_CONFLICT} z listą indeksów \\
-    student zapisuje się w trakcie zmiany terminu & \texttt{NOWAIT} + ponowienie albo wersja harmonogramu (K16) \\
-    \bottomrule
-  \end{tabularx}
+    \scriptsize
+    \renewcommand{\arraystretch}{1.1}
+    \rowcolors{2}{RowBg}{white}
+    \begin{tabularx}{\textwidth}{|L{6cm}|Y|}
+        \hline
+        \rowcolor{HeaderBg}
+        \textbf{Sytuacja} & \textbf{Reakcja} \\
+        \hline
+        dwa równoległe zapisy studenta na kolidujące sekcje & blokada studenta -- drugi \texttt{RULE\_VIOLATION} (K8) \\
+        \hline
+        awans z kolejki i równoległy zapis kandydata & blokada kandydata \texttt{NOWAIT} + Celery retry (K9) \\
+        \hline
+        zmiana terminu tworzy kolizję u zapisanego / u oczekującego & \texttt{STUDENT\_CONFLICT} (K10) / \texttt{SKIPPED\_CONFLICT} przy awansie (K12) \\
+        \hline
+        okno zamyka się w trakcie zapisu preferencji & \texttt{FOR SHARE} vs \texttt{FOR UPDATE}: zgłoszenie wchodzi do przydziału albo 403 (P5) \\
+        \hline
+        dwa przydziały końcowe / awaria workera & \texttt{UNIQUE} FINAL + blokada semestru; \texttt{ROLLBACK} i ponowienie (P8) \\
+        \hline
+        błąd algorytmu & \texttt{verify()} $\Rightarrow$ \texttt{ROLLBACK}, audyt \texttt{ALLOCATION\_FAILED} \\
+        \hline
+        miejsca / terminy zmienione po zgłoszeniu & przydział na stanie z chwili wykonania (P9) \\
+        \hline
+    \end{tabularx}
 \end{frame}
 
 \end{document}

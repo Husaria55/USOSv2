@@ -1,0 +1,114 @@
+@startuml klasy_modele
+!include _klasy.iuml
+title Projekt klas – modele domenowe, enumy i DTO (otrzymany projekt + etap 5)
+
+class Term <<zmieniona>> {
+  id: int
+  name: str
+  start_date, end_date: date
+  enrollment_start, enrollment_end: datetime
+  is_active: bool
+  <color:#1B7F3B>**enrollment_mode: EnrollmentMode**</color>
+  <color:#1B7F3B>**points_budget: int | None**</color>
+  + is_enrollment_open(): bool  <color:#1B7F3B>**{okno otwarte i tryb FCFS}**</color>
+  <color:#1B7F3B>**+ is_preference_window_open(): bool**</color>
+}
+class Section {
+  id, term_id, course_id, lecturer_id: int
+  capacity: int
+  room: str
+  schedules: list[ScheduleSlot]
+}
+class ScheduleSlot <<zmieniona>> {
+  id, section_id: int
+  day_of_week: DayOfWeek
+  start_time, end_time: time
+  + overlaps_with(other: ScheduleSlot): bool  <color:#1B7F3B>**{[start, end): styk to nie kolizja}**</color>
+}
+class Enrollment <<zmieniona>> {
+  id, student_id, section_id: int
+  status: EnrollmentStatus
+  enrolled_at: datetime
+  <color:#1B7F3B>**source: EnrollmentSource**</color>
+}
+class CoursePreference <<nowa>> {
+  id, student_id, term_id, course_id: int
+  weight: int
+  updated_at: datetime
+  sections: list[SectionPreference]
+}
+class SectionPreference <<nowa>> {
+  id, course_preference_id, section_id: int
+  rank: int
+}
+class AllocationRun <<nowa>> {
+  id, term_id: int
+  kind: AllocationKind
+  seed: int
+  created_at: datetime
+  requests, assigned: int
+  total_utility, upper_bound: float
+}
+class AllocationResultRow <<nowa>> {
+  id, run_id, student_id, course_id: int
+  section_id: int | None
+  weight: int
+  utility: float
+  status: AllocationResultStatus
+  reason: str | None
+}
+enum EnrollmentMode <<nowa>> {
+  FCFS
+  PREFERENCES
+}
+enum EnrollmentSource <<nowa>> {
+  DIRECT
+  WAITLIST
+  ALLOCATION
+}
+enum AllocationKind <<nowa>> {
+  PREVIEW
+  FINAL
+}
+enum AllocationResultStatus <<nowa>> {
+  ASSIGNED
+  UNASSIGNED
+}
+enum EnrollmentResultStatus {
+  ENROLLED
+  FULL
+  RULE_VIOLATION
+  CLOSED
+}
+class PreferenceDTO <<nowa>> {
+  course_id: int
+  weight: int
+  section_ids: list[int]
+}
+class PreferenceSaveResultDTO <<nowa>> {
+  status: SAVED | CLOSED | RULE_VIOLATION
+  used_points, budget: int
+  warnings: list[RuleViolationDTO]
+}
+class AllocationViewDTO <<nowa>> {
+  kind: AllocationKind
+  created_at: datetime
+  results: list[AllocationResultRow]
+}
+class ConflictDTO <<nowa>> {
+  student_id: int
+  conflicting_section_ids: list[int]
+}
+
+Term "1" o-- "*" Section
+Section "1" *-- "*" ScheduleSlot
+Section "1" o-- "*" Enrollment
+Term --> EnrollmentMode
+Enrollment --> EnrollmentSource
+CoursePreference "1" *-- "1..*" SectionPreference
+Term "1" o-- "*" CoursePreference
+Term "1" o-- "*" AllocationRun
+AllocationRun "1" *-- "*" AllocationResultRow
+AllocationRun --> AllocationKind
+AllocationResultRow --> AllocationResultStatus
+@enduml

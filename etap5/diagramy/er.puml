@@ -1,0 +1,164 @@
+@startuml er
+!pragma layout smetana
+skinparam shadowing false
+hide circle
+skinparam class {
+  BackgroundColor white
+  BorderColor #2F6496
+  HeaderBackgroundColor #2F6496
+  FontColor white
+  AttributeFontColor black
+  BackgroundColor<<nowa>> #D9F2E0
+  BorderColor<<nowa>> #1B7F3B
+  HeaderBackgroundColor<<nowa>> #1B7F3B
+  BackgroundColor<<zmieniona>> #FFF6CC
+  BorderColor<<zmieniona>> #C77700
+  HeaderBackgroundColor<<zmieniona>> #C77700
+}
+hide stereotype
+title Diagram ER – otrzymany projekt + etap 5 (nowe tabele zielone, nowe kolumny pogrubione na zielono)
+
+entity roles {
+  id : integer <<PK>>
+  name : varchar <<UQ>>
+  description : text
+}
+entity users {
+  id : integer <<PK>>
+  sso_id : varchar <<UQ>>
+  email : varchar <<UQ>>
+  first_name : varchar
+  last_name : varchar
+  role_id : integer <<FK>>
+  is_active : boolean
+  created_at : timestamp
+}
+entity audit_logs {
+  id : integer <<PK>>
+  user_id : integer <<FK>>
+  action : varchar
+  ip_address : varchar
+  details : text
+  created_at : timestamp
+}
+entity terms <<zmieniona>> {
+  id : integer <<PK>>
+  name : varchar
+  start_date : date
+  end_date : date
+  enrollment_start : timestamp
+  enrollment_end : timestamp
+  is_active : boolean
+  <color:#1B7F3B>**enrollment_mode : enrollment_mode_enum**</color>
+  <color:#1B7F3B>**points_budget : integer NULL**</color>
+}
+entity courses {
+  id : integer <<PK>>
+  code : varchar <<UQ>>
+  name : varchar
+  description : text
+  credits : integer
+}
+entity course_prerequisites {
+  course_id : integer <<PK, FK>>
+  prerequisite_course_id : integer <<PK, FK>>
+}
+entity lecturers {
+  id : integer <<PK>>
+  first_name, last_name : varchar
+  academic_title : varchar
+  email : varchar <<UQ>>
+  department : varchar
+}
+entity sections {
+  id : integer <<PK>>
+  term_id : integer <<FK>>
+  course_id : integer <<FK>>
+  lecturer_id : integer <<FK>>
+  capacity : integer
+  room : varchar
+}
+entity schedules {
+  id : integer <<PK>>
+  section_id : integer <<FK>>
+  day_of_week : day_of_week_enum
+  start_time : time
+  end_time : time
+}
+entity enrollments <<zmieniona>> {
+  id : integer <<PK>>
+  student_id : integer <<FK>>
+  section_id : integer <<FK>>
+  status : enrollment_status
+  enrolled_at : timestamp
+  <color:#1B7F3B>**source : enrollment_source_enum**</color>
+}
+entity waiting_lists {
+  id : integer <<PK>>
+  student_id : integer <<FK>>
+  section_id : integer <<FK>>
+  created_at : timestamp
+}
+entity course_preferences <<nowa>> {
+  id : integer <<PK>>
+  student_id : integer <<FK>>
+  term_id : integer <<FK>>
+  course_id : integer <<FK>>
+  weight : integer  CHECK > 0
+  updated_at : timestamp
+  UNIQUE (student_id, term_id, course_id)
+}
+entity section_preferences <<nowa>> {
+  id : integer <<PK>>
+  course_preference_id : integer <<FK>> ON DELETE CASCADE
+  section_id : integer <<FK>>
+  rank : integer  CHECK >= 1
+  UNIQUE (course_preference_id, section_id)
+  UNIQUE (course_preference_id, rank)
+}
+entity allocation_runs <<nowa>> {
+  id : integer <<PK>>
+  term_id : integer <<FK>>
+  kind : allocation_kind_enum (PREVIEW | FINAL)
+  seed : bigint
+  created_at : timestamp
+  requests, assigned : integer
+  total_utility, upper_bound : numeric
+  UNIQUE (term_id) WHERE kind = 'FINAL'
+}
+entity allocation_results <<nowa>> {
+  id : integer <<PK>>
+  run_id : integer <<FK>> ON DELETE CASCADE
+  student_id : integer <<FK>>
+  course_id : integer <<FK>>
+  section_id : integer <<FK>> NULL
+  weight : integer
+  utility : numeric
+  status : ASSIGNED | UNASSIGNED
+  reason : varchar NULL
+  CHECK (status='ASSIGNED') = (section_id IS NOT NULL)
+}
+
+roles ||--o{ users
+users ||--o{ audit_logs
+users ||--o{ enrollments
+users ||--o{ waiting_lists
+sections ||--o{ enrollments
+sections ||--o{ waiting_lists
+sections ||--o{ schedules
+terms ||--o{ sections
+courses ||--o{ sections
+lecturers ||--o{ sections
+courses ||--o{ course_prerequisites
+courses ||--o{ course_prerequisites
+users ||--o{ course_preferences
+terms ||--o{ course_preferences
+courses ||--o{ course_preferences
+course_preferences ||--|{ section_preferences
+sections ||--o{ section_preferences
+terms ||--o{ allocation_runs
+allocation_runs ||--o{ allocation_results
+users ||--o{ allocation_results
+courses ||--o{ allocation_results
+sections |o--o{ allocation_results
+@enduml

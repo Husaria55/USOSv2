@@ -120,7 +120,7 @@ docker run --rm --network usosv2_default -v "$PWD/loadtest:/s" grafana/k6:1.3.0 
 
 ## Etap 5: tury preferencyjne i zmiana terminów w trakcie tury
 
-Projekt i uzasadnienia: [`etap5/README.md`](etap5/README.md), scenariusze testowe: [`etap5/TESTY.md`](etap5/TESTY.md).
+Ta implementacja to wersja etapu 5 na naszym projekcie: [`etap5_nasz_projekt/`](etap5_nasz_projekt/README.md). Oddawany projekt końcowy (rozwinięcie projektu otrzymanego od innej grupy) jest w [`etap5/`](etap5/README.md).
 
 - Migracja `0002_preferences` (`docker compose up` stosuje ją sama; `alembic downgrade 0001` cofa).
 - Tura w trybie `PREFERENCES`: student w zakładce „Preferencje” rozdziela pulę punktów i układa grupy;

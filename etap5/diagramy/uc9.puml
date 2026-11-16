@@ -1,0 +1,58 @@
+@startuml uc9
+!include _styl.iuml
+title UC9 / UC10 – Przydział miejsc według preferencji (nowe w etapie 5, zadania Celery)
+autonumber
+participant "Celery Beat" as beat
+queue "Kolejka zadań\n(Celery + Redis)" as q
+participant "Workery" as w
+participant "AllocationService" as as
+participant "PreferenceAllocator" as pa
+participant "AuditLogService" as al
+database "Baza danych\n(PostgreSQL)" as db
+database "Cache\n(Redis)" as cache
+
+== UC10: symulacja w trakcie okna zapisów (co 5 min) ==
+beat -> q : preview_allocations()
+q -> w : zadanie
+w -> as : run_allocation(term_id, kind=PREVIEW)
+as -> db : zgłoszenia, sekcje, terminy, wolne miejsca, plany i zaliczenia (bez blokad)
+as -> pa : allocate(requests, profiles, sections, seed) : AllocationResult
+as -> pa : verify(result) : list[str]
+as -> db : INSERT allocation_runs (PREVIEW) + allocation_results;\nDELETE starszych PREVIEW tego semestru
+note right of db : enrollments bez zmian – to tylko podgląd (UC8)
+
+== UC9: przydział końcowy po enrollment_end (sprawdzane co minutę) ==
+beat -> q : finalize_allocations()
+q -> w : zadanie
+w -> as : run_allocation(term_id, kind=FINAL)
+as -> db : BEGIN + SELECT * FROM terms WHERE id = term_id FOR UPDATE
+alt tryb FCFS / okno jeszcze trwa / istnieje już FINAL
+  as -> db : ROLLBACK
+  as --> w : AllocationRunDTO(status=SKIPPED)  (np. druga instancja workera – to nie błąd)
+else można przydzielać
+  as -> db : zgłoszenia: course_preferences JOIN section_preferences
+  as -> db : SELECT * FROM users WHERE id IN (...) ORDER BY id FOR UPDATE
+  as -> db : SELECT * FROM sections WHERE id IN (...) ORDER BY id FOR UPDATE
+  note right of db : kolejność student -> sekcja jak w UC1a: brak zakleszczeń,\nstan (miejsca, plany, terminy) nie zmieni się do COMMIT
+  as -> db : schedules, liczba ENROLLED, plany studentów, zaliczenia (COMPLETED)
+  as -> pa : allocate(requests, profiles, sections, seed)
+  pa -> pa : 1. wykonalne sekcje (te same reguły co check_rules)\n2. zachłannie: malejąco po wadze, remis – los (seed)\n3. poprawa lokalna (przeniesienia, łańcuchy, zwolnienia)
+  pa --> as : AllocationResult (przydziały, odmowy z powodami,\ntotal_utility, upper_bound)
+  as -> pa : verify(result) – niezależna kontrola limitów i kolizji
+  alt naruszenie (błąd w algorytmie)
+    as -> db : ROLLBACK
+    as -> al : log_action(user_id=None, action="ALLOCATION_FAILED", ip="SYSTEM")
+  else poprawny wynik
+    as -> db : INSERT allocation_runs (FINAL, seed, statystyki)
+    note right of db : UNIQUE (term_id) WHERE kind = 'FINAL'\n– drugi przydział końcowy niemożliwy
+    as -> db : INSERT allocation_results (ASSIGNED / UNASSIGNED + reason)
+    as -> db : INSERT enrollments (status='ENROLLED', source='ALLOCATION') ×K
+    as -> al : log_action(user_id=student_id, action="ALLOCATED", ip="SYSTEM") ×studenci
+    as -> db : COMMIT
+    as -> cache : DEL available_seats:{section_id} ×sekcje
+  end
+end
+alt DatabaseError
+  w -> q : ponów zadanie (Celery retry) – semestr dalej „bez FINAL”, przydział od nowa
+end
+@enduml

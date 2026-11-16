@@ -1,0 +1,16 @@
+!pragma layout smetana
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam defaultFontSize 11
+skinparam class {
+  BackgroundColor white
+  BorderColor #2F6496
+  BackgroundColor<<nowa>> #D9F2E0
+  BorderColor<<nowa>> #1B7F3B
+  BackgroundColor<<zmieniona>> #FFF6CC
+  BorderColor<<zmieniona>> #C77700
+}
+hide empty members
+legend bottom
+  <back:#D9F2E0>  nowa klasa  </back>   <back:#FFF6CC>  klasa zmieniona  </back>   <color:#1B7F3B>**zielone pogrubione**</color> = nowe / zmienione pole lub metoda   pozostałe – jak w otrzymanym projekcie
+endlegend

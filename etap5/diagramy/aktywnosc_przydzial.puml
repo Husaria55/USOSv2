@@ -1,49 +1,48 @@
 @startuml aktywnosc_przydzial
-title Algorytm przydziału według preferencji – domain/allocation.allocate()
 skinparam shadowing false
-skinparam defaultFontSize 12
-
+title PreferenceAllocator.allocate() – algorytm przydziału według preferencji (nowe w etapie 5)
 start
-:Wejście: zgłoszenia (student, przedmiot, waga, grupy w kolejności per typ),
-plany i zaliczenia studentów, grupy z liczbą wolnych miejsc, ziarno;
-partition "1. Wykonalność (options_for)" {
+:Wejście: zgłoszenia (student, kurs, waga, sekcje wg rang),
+plany i zaliczenia studentów, sekcje z wolnymi miejscami, ziarno;
+partition "1. Wykonalność (reguły jak w check_rules)" {
   :dla każdego zgłoszenia;
   if (brak zaliczonych wymagań?) then (tak)
     :odmowa PREREQUISITES;
     detach
   endif
-  :pomiń typy zajęć, z których student ma już grupę;
-  if (wszystkie typy już ma?) then (tak)
+  if (student ma już sekcję tego kursu?) then (tak)
     :odmowa ALREADY_ENROLLED;
     detach
   endif
-  :odrzuć grupy kolidujące z planem studenta;
-  :kombinacje: po jednej grupie z każdego typu,\nbez kolizji między sobą;
-  :użyteczność u = waga × średnia(max(0.5, 1 − 0.1·(ranga − 1)));
-  if (brak kombinacji?) then (tak)
+  :odrzuć sekcje kolidujące z planem (ScheduleSlot.overlaps_with);
+  if (nic nie zostało?) then (tak)
     :odmowa CONFLICT / NO_SECTIONS;
     detach
   endif
+  :użyteczność sekcji: u = waga × max(0.5, 1 − 0.1·(ranga − 1));
 }
 partition "2. Zachłannie" {
-  :kolejność: waga malejąco, remis – los studenta (Random(seed));
-  :każde zgłoszenie: pierwsza (najlepsza) kombinacja, która się mieści\n(wolne miejsca, brak kolizji z już przydzielonymi);
+  :kolejność: waga malejąco, remis – los studenta Random(seed);
+  :każde zgłoszenie dostaje najlepszą sekcję, która się mieści
+  (wolne miejsce, brak kolizji z już przydzielonymi);
 }
 partition "3. Poprawa lokalna (do 10 przebiegów)" {
   repeat
-    :dla nieprzydzielonego zgłoszenia r i jego kombinacji c;
-    :zwolnij własne przydziały studenta kolidujące z c;
-    :pełne grupy w c: przenieś kogoś do jego innej kombinacji\n(łańcuch do 2 przeniesień), a gdy się nie da –\nzwolnij przydział o najmniejszej użyteczności;
+    :dla nieprzydzielonego zgłoszenia r i jego sekcji s;
+    :zwolnij własne przydziały studenta kolidujące z s;
+    :pełna sekcja: przenieś kogoś do jego innej akceptowanej sekcji
+    (łańcuch do 2 przeniesień), a gdy się nie da –
+    zwolnij przydział o najmniejszej użyteczności;
     :wstaw r; zwolnionym przydziel, co się mieści;
     if (suma u wzrosła?) then (tak)
       :zatwierdź ruch;
     else (nie)
       :wycofaj ruch (dziennik zmian);
     endif
-  repeat while (w przebiegu był ruch?\n(kolejny tylko dla zgłoszeń z grupami zmienionymi w poprzednim)) is (tak)
+  repeat while (był ruch w przebiegu?) is (tak)
 }
 :wynik: przydziały, odmowy z powodem (FULL / OWN_CONFLICT / ...),
-suma u, górne ograniczenie = suma wag wykonalnych zgłoszeń;
-:verify(): niezależna kontrola limitów, kolizji, wymagań, typów;
+suma u, górne ograniczenie (suma wag wykonalnych zgłoszeń);
+:verify(): niezależna kontrola limitów, kolizji, wymagań;
 stop
 @enduml

@@ -1,0 +1,51 @@
+@startuml uc1a
+!include _styl.iuml
+title UC1a – Zapis na sekcję (po zmianach etapu 5)
+autonumber
+actor Student
+participant "API REST &\nSSOAuthService" as api
+participant "EnrollmentService" as es
+participant "EnrollmentRuleEngine" as re
+participant "AuditLogService" as al
+database "Baza danych\n(PostgreSQL)" as db
+database "Cache\n(Redis)" as cache
+
+Student -> api : POST /api/enrollments (section_id)
+ref over api : Weryfikacja tokenu JWT i roli "Student" (zob. UC6b)
+api -> es : enroll(student_id: int, section_id: int, ip: str)
+es -[#1B7F3B]> db : <color:#1B7F3B>BEGIN + SELECT * FROM users WHERE id = student_id FOR UPDATE</color>
+note right of es : ZMIANA 1: blokada studenta na początku transakcji.\nDwa równoległe zapisy tego samego studenta na kolidujące\nsekcje wykonują się po kolei – drugi widzi już pierwszy zapis.
+es -> db : SELECT * FROM terms WHERE is_active = TRUE
+db --> es : term.is_enrollment_open() : bool
+note right of es : ZMIANA 2: is_enrollment_open() = okno zapisów otwarte\n**i** enrollment_mode = FCFS. W trybie PREFERENCES\nzapis bezpośredni jest zamknięty (zob. UC7, UC9).
+alt term.is_enrollment_open() == False [Zapisy zamknięte / trwa tura preferencji]
+  es -> db : ROLLBACK
+  es --> api : ResultDTO(status=CLOSED)
+  api --> Student : 403 Forbidden (komunikat o terminie lub trybie zapisów)
+else term.is_enrollment_open() == True [Zapisy otwarte]
+  es -[#1B7F3B]> db : <color:#1B7F3B>SELECT * FROM sections WHERE id = section_id FOR UPDATE</color>
+  note right of es : ZMIANA 3: blokada sekcji PRZED sprawdzeniem reguł.\nZmiana harmonogramu sekcji (UC11) bierze tę samą blokadę,\nwięc check_rules widzi aktualne terminy.
+  es -[#1B7F3B]> re : <color:#1B7F3B>check_rules(student_id: int, section_id: int)</color>
+  ref over re, db : Walidacja reguł zapisu: duplikat kursu, wymagania wstępne, kolizje planu (zob. UC1b)\n<color:#1B7F3B>– teraz wewnątrz transakcji, pod blokadą studenta i sekcji</color>
+  re --> es : Optional[RuleViolationDTO]
+  alt check_rules zwróciło RuleViolationDTO [Naruszenie reguł]
+    es -[#1B7F3B]> db : <color:#1B7F3B>ROLLBACK</color>
+    es --> api : ResultDTO(status=RULE_VIOLATION, details=DTO)
+    api --> Student : 400 Bad Request (brak wymagań / kolizja / duplikat kursu)
+  else check_rules zwróciło None [Warunki spełnione]
+    alt Liczba zapisanych (status=ENROLLED) < section.capacity [Są wolne miejsca]
+      es -> db : INSERT INTO enrollments (student_id, section_id, status='ENROLLED', <color:#1B7F3B>source='DIRECT'</color>, enrolled_at)\nON CONFLICT (student_id, section_id) DO UPDATE SET status='ENROLLED', enrolled_at=NOW()
+      es -> al : log_action(user_id=student_id, action="ENROLL", ip=ip, details) : None
+      al -> db : INSERT INTO audit_logs
+      es -> db : COMMIT
+      es -> cache : DEL available_seats:{section_id}
+      es --> api : ResultDTO(status=ENROLLED)
+      api --> Student : 201 Created (potwierdzenie zapisu)
+    else Liczba zapisanych >= section.capacity [Sekcja pełna]
+      es -> db : ROLLBACK
+      es --> api : ResultDTO(status=FULL)
+      api --> Student : 409 Conflict (sekcja pełna, propozycja listy oczekujących -> zob. UC1b)
+    end
+  end
+end
+@enduml

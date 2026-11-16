@@ -1,0 +1,51 @@
+@startuml use_case_admin
+!pragma layout smetana
+left to right direction
+skinparam shadowing false
+skinparam usecase {
+  BackgroundColor white
+  BorderColor black
+  BackgroundColor<<nowy>> #D9F2E0
+  BorderColor<<nowy>> #1B7F3B
+  BackgroundColor<<zmieniony>> #FFF6CC
+  BorderColor<<zmieniony>> #C77700
+}
+hide stereotype
+actor Administrator
+actor "Zegar\n(Celery Beat)" as Clock
+rectangle "System zapisu na zajęcia – Przypadki użycia (2/2) – administrator i zegar (otrzymany projekt + etap 5)" {
+  usecase "Zarządzaj sekcjami\ni limitem miejsc" as MS
+  usecase "Zarządzaj kursami\ni wymaganiami" as MC
+  usecase "Zarządzaj\nwykładowcami" as ML
+  usecase "Zarządzaj\nharmonogramami" as MH <<zmieniony>>
+  usecase "Zmień harmonogram\nw trakcie zapisów (UC11)" as UC11 <<nowy>>
+  usecase "Ustaw start\ni blokadę zapisów" as WIN <<zmieniony>>
+  usecase "Ustaw tryb zapisów\ni pulę punktów (UC12)" as UC12 <<nowy>>
+  usecase "Przydziel miejsca według\npreferencji (UC9)" as UC9 <<nowy>>
+  usecase "Symuluj przydział\n(UC10)" as UC10 <<nowy>>
+  usecase "Przeglądaj raport\nprzydziału (UC13)" as UC13 <<nowy>>
+  usecase "Automatyczny zapis\nz kolejki (UC2)" as A <<zmieniony>>
+  usecase "Zweryfikuj\nwarunki zapisu" as V <<zmieniony>>
+  usecase "Wykryj konflikt\nharmonogramów" as K
+}
+Administrator -- MS
+Administrator -- MC
+Administrator -- ML
+Administrator -- MH
+Administrator -- WIN
+Administrator -- UC9
+Administrator -- UC10
+Administrator -- UC13
+Clock -- UC9
+Clock -- UC10
+A ..> MS : <<extend>>
+UC11 ..> MH : <<extend>>
+UC11 ..> K : <<include>>\n(plany zapisanych)
+UC12 ..> WIN : <<extend>>
+UC9 ..> V : <<include>>
+UC10 ..> V : <<include>>
+V ..> K : <<include>>
+legend bottom
+  <back:#D9F2E0>  nowy  </back> przypadek użycia etapu 5     <back:#FFF6CC>  zmieniony  </back> przypadek użycia z otrzymanego projektu     pozostałe – bez zmian
+endlegend
+@enduml

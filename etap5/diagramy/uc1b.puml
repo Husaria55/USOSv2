@@ -1,0 +1,41 @@
+@startuml uc1b
+!include _styl.iuml
+title UC1b – Dołączenie do listy oczekujących (po zmianach etapu 5)
+autonumber
+actor Student
+participant "API REST &\nSSOAuthService" as api
+participant "WaitingListService" as wl
+participant "EnrollmentRuleEngine" as re
+participant "AuditLogService" as al
+database "Baza danych\n(PostgreSQL)" as db
+
+group UC1b: Dołączenie do listy oczekujących (gdy sekcja jest pełna)
+  Student -> api : POST /api/waitlist (section_id)
+  ref over api : Weryfikacja tokenu JWT i roli "Student" (zob. UC6b)
+  api -> wl : join_waitlist(student_id: int, section_id: int, ip: str)
+  wl -[#1B7F3B]> db : <color:#1B7F3B>BEGIN + SELECT * FROM users WHERE id = student_id FOR UPDATE</color>
+  wl -> db : term.is_enrollment_open(), liczba wolnych miejsc, brak duplikatu w kolejce
+  note right of wl : ZMIANA: w trybie PREFERENCES is_enrollment_open() == False\n– w turze preferencji nie ma kolejki (UC9 przydziela miejsca).
+  alt zapisy zamknięte / są wolne miejsca / już w kolejce
+    wl -> db : ROLLBACK
+    wl --> api : 403 / 409 (z powodem)
+  end
+  wl -[#1B7F3B]> re : <color:#1B7F3B>check_rules(student_id: int, section_id: int)  – wewnątrz transakcji</color>
+  group Szczegóły bloku ref: Walidacja reguł zapisu (check_rules)
+    re -> re : is_already_enrolled_in_course(student_id, course_id, term_id) : bool
+    re -> re : verify_prerequisites(student_id: int, course_id: int) : list[Course]
+    re -> re : has_schedule_conflict(student_id: int, section_id: int) : list[Section]\n[wywołuje ScheduleSlot.overlaps_with(other: ScheduleSlot) : bool]
+    note right of re : ZMIANA (doprecyzowanie): overlaps_with – przedziały [start, end):\nkolizja, gdy ten sam dzień i start1 < end2 i start2 < end1;\nstyk 9:30 / 9:30 NIE jest kolizją (testy K2).
+    re -> db : SELECT FROM enrollments (COMPLETED, ENROLLED), courses, sections, schedules
+    db --> re : historia zaliczeń i aktualny plan studenta
+  end
+  re --> wl : None (wszystkie warunki spełnione)
+  wl -> db : INSERT INTO waiting_lists (student_id, section_id, created_at)
+  wl -> al : log_action(user_id, action="JOIN_WAITLIST", ip, details) : None
+  al -> db : INSERT INTO audit_logs
+  wl -> db : COMMIT
+  db --> wl : wyliczona pozycja w kolejce (wg created_at)
+  wl --> api : int (numer pozycji)
+  api --> Student : 201 Created (potwierdzenie i pozycja na liście oczekujących)
+end
+@enduml

@@ -1,0 +1,52 @@
+@startuml uc11
+!include _styl.iuml
+title UC11 – Zmiana harmonogramu sekcji w trakcie zapisów (nowe w etapie 5)
+autonumber
+actor Administrator as admin
+participant "API REST &\nSSOAuthService" as api
+participant "CatalogService" as cs
+participant "EnrollmentRuleEngine" as re
+participant "AuditLogService" as al
+database "Baza danych\n(PostgreSQL)" as db
+database "Cache\n(Redis)" as cache
+participant "EnrollmentService\n(równoległy zapis)" as es
+
+admin -> api : PUT /api/sections/{section_id} {room, lecturer_id, schedules[]}
+ref over api : Weryfikacja tokenu JWT i roli "Admin" (zob. UC6b)
+api -> cs : create_or_update_section(data: SectionDTO, admin_id: int, ip: str)
+cs -> db : BEGIN + SELECT * FROM sections WHERE id = section_id FOR UPDATE
+cs -> db : kolizja sali z innymi zajęciami w tych godzinach (jak w otrzymanym projekcie)
+alt sala zajęta
+  cs -> db : ROLLBACK
+  cs --> api : 409 Conflict ROOM_BUSY
+end
+cs -[#1B7F3B]> db : <color:#1B7F3B>SELECT student_id FROM enrollments WHERE section_id AND status='ENROLLED'</color>
+cs -[#1B7F3B]> db : <color:#1B7F3B>SELECT * FROM users WHERE id IN (...) ORDER BY id FOR UPDATE NOWAIT</color>
+note right of cs : NOWE: zapisani nie mogą w tej chwili zmienić planu.\nKolejność sekcja -> student (odwrotna niż UC1a) => NOWAIT.
+alt student akurat się zapisuje (55P03)
+  cs -> db : ROLLBACK
+  cs --> api : 409 BUSY – „spróbuj ponownie za chwilę”
+end
+cs -[#1B7F3B]> re : <color:#1B7F3B>find_schedule_conflicts(section_id, new_slots: list[ScheduleSlot], student_ids) : list[ConflictDTO]</color>
+re -> db : plany zapisanych studentów (pozostałe sekcje ENROLLED w semestrze)
+re -> re : ScheduleSlot.overlaps_with dla każdej pary (nowy termin, termin z planu)
+alt kolizja u choć jednego zapisanego
+  cs -> db : ROLLBACK
+  cs --> api : 409 Conflict STUDENT_CONFLICT {details: [index: kolidujące sekcje]}
+  api --> admin : komunikat – przenieś studentów albo wybierz inny termin
+else brak kolizji
+  cs -> db : UPDATE sections; DELETE + INSERT schedules
+  cs -> al : log_action(user_id=admin_id, action="SECTION_SCHEDULE_CHANGE", ip, details)
+  al -> db : INSERT INTO audit_logs
+  cs -> db : COMMIT
+  cs -> cache : DEL available_seats:{section_id}
+  cs --> api : Section
+  api --> admin : 200 OK
+end
+
+== Równolegle: zapis studenta na tę sekcję (UC1a) ==
+es -> db : SELECT users ... FOR UPDATE (student)
+es -> db : SELECT sections ... FOR UPDATE – czeka na COMMIT zmiany harmonogramu
+es -> re : check_rules – czyta JUŻ NOWE terminy sekcji
+note over es, re : Kolizji nie da się „przemycić” w żadnej kolejności:\n• zapis pierwszy -> dziekanat widzi studenta wśród zapisanych (kroki 7-13) -> STUDENT_CONFLICT\n• zmiana pierwsza -> zapis sprawdza nowe terminy -> RULE_VIOLATION (kolizja)\n• oczekujący na liście: sprawdzani przy awansie (UC2) -> SKIPPED_CONFLICT
+@enduml

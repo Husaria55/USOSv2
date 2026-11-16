@@ -1,0 +1,51 @@
+@startuml uc2
+!include _styl.iuml
+title UC2 – Automatyczny awans z kolejki (po zmianach etapu 5)
+autonumber
+queue "Kolejka zadań\n(Celery + Redis)" as q
+participant "Workery" as w
+participant "WaitingListService" as wl
+participant "EnrollmentRuleEngine" as re
+participant "AuditLogService" as al
+database "Baza danych\n(PostgreSQL)" as db
+database "Cache\n(Redis)" as cache
+
+q -> w : odbierz zdarzenie SEAT_FREED(section_id: int)
+w -> wl : on_seat_freed(section_id: int)\n[inicjalizuje excluded_ids: list[int] = []]
+loop Dopóki status == PROMOTED lub SKIPPED_CONFLICT
+  wl -> wl : promote_next(section_id: int, excluded_ids: list[int]) : WaitlistPromotionStatus
+  wl -> db : BEGIN + SELECT * FROM sections WHERE id = section_id FOR UPDATE\n+ SELECT * FROM waiting_lists WHERE section_id AND student_id NOT IN (excluded_ids)\nORDER BY created_at ASC LIMIT 1 FOR UPDATE
+  db --> wl : stan miejsc sekcji oraz najstarszy wpis WaitingListEntry
+  alt Brak wolnych miejsc (NO_SEATS) lub brak kolejnych osób w kolejce (EMPTY)
+    wl -> db : ROLLBACK
+    wl --> wl : Enum (NO_SEATS / EMPTY) [koniec pętli]
+  else Jest wolne miejsce i pobrano kandydata z waiting_lists
+    wl -[#1B7F3B]> db : <color:#1B7F3B>SELECT * FROM users WHERE id = entry.student_id FOR UPDATE NOWAIT</color>
+    note right of wl : ZMIANA: blokada kandydata. Bez niej kandydat mógł w tej samej\nchwili zapisać się (UC1a) na kolidującą sekcję – obie transakcje\nwidziały stary plan i powstawała kolizja. Kolejność blokad jest tu\nodwrotna (sekcja -> student), więc NOWAIT zamiast czekania.
+    alt <color:#1B7F3B>kandydat zablokowany przez inną transakcję (55P03)</color>
+      wl -[#1B7F3B]> db : <color:#1B7F3B>ROLLBACK</color>
+      w -[#1B7F3B]> q : <color:#1B7F3B>ponów zadanie on_seat_freed(section_id) za chwilę (Celery retry, countdown)</color>
+    end
+    wl -> re : check_rules(student_id: int, section_id: int)
+    ref over re, db : Walidacja reguł zapisu (zob. UC1b) – na planie, którego nikt teraz nie zmieni
+    re --> wl : Optional[RuleViolationDTO]
+    alt check_rules == None [Student spełnia warunki]
+      wl -> db : INSERT INTO enrollments (student_id, section_id, status='ENROLLED', <color:#1B7F3B>source='WAITLIST'</color>, enrolled_at)
+      wl -> db : DELETE FROM waiting_lists WHERE id = entry.id
+      wl -> al : log_action(user_id, action="WAITLIST_PROMOTE", ip="SYSTEM", details) : None
+      al -> db : INSERT INTO audit_logs
+      wl -> db : COMMIT
+      wl --> wl : Enum (PROMOTED)
+    else check_rules zwróciło DTO [Konflikt planu - pomiń osobę, zostaw w kolejce]
+      wl -> db : ROLLBACK
+      wl -> wl : excluded_ids.append(student_id)
+      wl --> wl : Enum (SKIPPED_CONFLICT)
+    else Błąd transakcji bazodanowej (DatabaseError)
+      db --> wl : DatabaseError -> ROLLBACK
+      w -> q : ponów zadanie on_seat_freed(section_id) (Celery retry)
+    end
+  end
+end
+wl -> cache : DEL available_seats:{section_id}
+wl --> w : int (liczba awansowanych studentów)
+@enduml

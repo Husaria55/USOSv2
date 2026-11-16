@@ -1,0 +1,48 @@
+% Architektura - odtworzony diagram otrzymanego projektu + zmiany etapu 5 (zielone: nowe, pomarańczowe: zmienione).
+\documentclass[tikz,border=8pt]{standalone}
+\usepackage[sfdefault]{FiraSans}
+\usetikzlibrary{arrows.meta,positioning,calc}
+\begin{document}
+\begin{tikzpicture}[
+  font=\sffamily\bfseries\large, >={Stealth[length=3mm]},
+  box/.style={draw, rounded corners=3pt, line width=1pt, minimum width=4.6cm, minimum height=1.25cm, align=center},
+  num/.style={circle, fill=black, text=white, font=\sffamily\bfseries\normalsize, inner sep=1.5pt, minimum size=0.75cm},
+  new/.style={box, draw=green!50!black, fill=green!12, line width=1.6pt},
+  chg/.style={box, draw=orange!90!black, fill=yellow!22, line width=2pt, dash pattern=on 6pt off 3pt},
+  lbl/.style={font=\sffamily\itshape\normalsize, text=black!60},
+]
+\node[box, draw=black!60, fill=black!6] (dns) at (-9,7) {DNS};
+\node[box, draw=orange!70!black, fill=orange!8] (br) at (0,7) {Przeglądarka};
+\node[box, draw=blue!70!black, fill=blue!10] (lb) at (0,4.5) {Load Balancer};
+\node[box, draw=purple!70!black, fill=purple!8] (sso) at (7,4.5) {SSO uczelni};
+\node[chg, minimum width=5.4cm] (app) at (0,2) {Serwery aplikacji\\[-1pt]{\normalsize\mdseries + PreferenceService, AllocationService}};
+\node[chg] (db) at (-8,2) {Baza danych\\[-1pt]{\normalsize\mdseries + preferencje, przebiegi przydziału}};
+\node[box, draw=orange!70!black, fill=orange!8] (q) at (0,-1) {Kolejka zadań};
+\node[box, draw=red!70!black, fill=red!8] (redis) at (7,-1) {Cache (Redis)};
+\node[chg, minimum width=5.4cm] (w) at (0,-4) {Workery\\[-1pt]{\normalsize\mdseries + symulacja i przydział preferencji}};
+\node[new, minimum width=3.6cm] (beat) at (-9,-1) {Celery Beat\\[-1pt]{\normalsize\mdseries harmonogram zadań}};
+\foreach \n/\t in {dns/1, lb/2, app/3, db/4, sso/5, redis/6, q/7a, w/7b} {\node[num] at (\n.north west) {\t};}
+\node[num, fill=green!45!black] at (beat.north west) {7c};
+
+\draw[->] (br) -- node[lbl, fill=white] {nazwa $\rightarrow$ adres} (dns);
+\draw[->] (br) -- (lb);
+\draw[<->] (br.east) -| (sso.north);
+\draw[->] (lb) -- (app);
+\draw[<->] (app) -- (db);
+\draw[<->] (app.east) -| (sso.south);
+\draw[->] (app) -- (q);
+\draw[<->] ([xshift=2.5cm]app.south) |- (redis.west);
+\draw[->] (q) -- (w);
+\draw[->] (w.west) -| ([xshift=2cm]db.south);
+\draw[->] (w.east) -| (redis.south);
+\draw[->, green!45!black, line width=1.4pt] (beat) -- node[lbl, above, text=green!35!black] {co 5 min / co 1 min} (q);
+
+\begin{scope}[shift={(-11.2,-6.2)}, font=\sffamily\normalsize]
+  \node[anchor=west, draw=green!50!black, fill=green!12, line width=1.4pt, minimum width=0.8cm, minimum height=0.45cm] at (0,0) {};
+  \node[anchor=west] at (1,0) {nowy element (etap 5)};
+  \node[anchor=west, draw=orange!90!black, fill=yellow!22, line width=1.6pt, dash pattern=on 4pt off 2pt, minimum width=0.8cm, minimum height=0.45cm] at (6.2,0) {};
+  \node[anchor=west] at (7.2,0) {zmieniony element};
+  \node[anchor=west, text=black!65] at (12.4,0) {pozostałe -- bez zmian względem otrzymanego projektu};
+\end{scope}
+\end{tikzpicture}
+\end{document}

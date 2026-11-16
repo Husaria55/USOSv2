@@ -1,0 +1,55 @@
+@startuml uc7
+!include _styl.iuml
+title UC7 / UC8 – Zgłoszenie i zmiana preferencji, podgląd przydziału (nowe w etapie 5)
+autonumber
+actor Student
+participant "Aplikacja webowa\n(React)" as web
+participant "API REST &\nSSOAuthService" as api
+participant "PreferenceService" as ps
+participant "EnrollmentRuleEngine" as re
+participant "AuditLogService" as al
+database "Baza danych\n(PostgreSQL)" as db
+
+Student -> web : ustawia wagi kursów (suma <= pula), układa sekcje w kolejności,\nklika „Zapisz preferencje”
+web -> api : PUT /api/preferences {term_id, courses: [{course_id, weight, section_ids[]}]}
+ref over api : Weryfikacja tokenu JWT i roli "Student" (zob. UC6b)
+api -> ps : save_preferences(student_id: int, term_id: int, prefs: list[PreferenceDTO], ip: str)
+ps -> db : BEGIN + SELECT * FROM terms WHERE id = term_id FOR SHARE
+note right of ps : FOR SHARE na semestrze: przydział końcowy (UC9) bierze\nFOR UPDATE, więc zgłoszenie albo zdąży przed nim,\nalbo dostanie odmowę – nie „zginie” w trakcie przydziału.
+db --> ps : term.is_preference_window_open() : bool
+alt False [poza oknem zapisów albo semestr w trybie FCFS]
+  ps -> db : ROLLBACK
+  ps --> api : PreferenceSaveResultDTO(status=CLOSED)
+  api --> web : 403 Forbidden (tura preferencji nie trwa)
+else True
+  ps -> db : SELECT * FROM users WHERE id = student_id FOR UPDATE
+  note right of ps : dwie karty przeglądarki zapisują po kolei –\nwygrywa ostatni zapis, suma wag zawsze <= pula
+  ps -> db : SELECT id, course_id, term_id FROM sections WHERE id IN (section_ids)
+  ps -> ps : validate(prefs, term) : list[RuleViolationDTO]\n(suma wag <= points_budget, waga >= 1, sekcje należą do kursu\ni semestru, brak duplikatów kursów i sekcji, <= 20 kursów)
+  alt są błędy
+    ps -> db : ROLLBACK
+    ps --> api : PreferenceSaveResultDTO(status=RULE_VIOLATION, errors)
+    api --> web : 400 Bad Request (BUDGET_EXCEEDED / BAD_SECTION / DUPLICATE...)
+  else poprawne
+    ps -> db : DELETE FROM course_preferences WHERE student_id AND term_id\n(kaskadowo section_preferences)
+    ps -> db : INSERT INTO course_preferences (student_id, term_id, course_id, weight) ×N
+    ps -> db : INSERT INTO section_preferences (course_preference_id, section_id, rank) ×M
+    ps -> al : log_action(user_id=student_id, action="SAVE_PREFERENCES", ip=ip, details)
+    al -> db : INSERT INTO audit_logs
+    ps -> db : COMMIT
+    group ostrzeżenia (nie blokują zapisu – przydział sprawdzi wszystko ponownie)
+      ps -> re : verify_prerequisites(student_id, course_id) / has_schedule_conflict(student_id, section_id)
+      re --> ps : brakujące kursy / kolidujące sekcje
+    end
+    ps --> api : PreferenceSaveResultDTO(status=SAVED, used_points, budget, warnings)
+    api --> web : 200 OK
+    web --> Student : „Zapisano (70/100 pkt)” + ostrzeżenia przy kursach
+  end
+end
+
+== UC8: podgląd przewidywanego / końcowego przydziału ==
+web -> api : GET /api/allocation?term_id=...
+api -> db : ostatni przebieg allocation_runs (FINAL, a jeśli brak – najnowszy PREVIEW)\n+ allocation_results studenta
+api --> web : AllocationViewDTO {kind, created_at, results: [{course, status, section, reason}]}
+web --> Student : przewidywany przydział i powody odmów – student może zmienić wagi (krok 1)
+@enduml

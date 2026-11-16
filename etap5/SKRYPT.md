@@ -1,128 +1,106 @@
-# Etap 5 (18.XI) – skrypt prezentacji (ok. 7 minut)
+# Etap 5 (18.XI) – skrypt prezentacji (ok. 8 minut)
 
-Slajdy: `prezentacja/prezentacja.pdf`: tytuł, 9 slajdów treści, „Dziękujemy”, potem slajdy zapasowe
-(pełne diagramy, klasy, ER, ekran dziekanatu, tabela „co może pójść nie tak”).
-Czasy w kolumnie „do” są też w komentarzach `% N --- m:ss` w `prezentacja.tex`.
+Slajdy: `prezentacja/prezentacja.pdf` – tytuł, plan, 13 slajdów treści, „Dziękujemy”, slajdy zapasowe
+(UC1b, UC7, przypadki użycia administratora, algorytm, klasy, tabele metod, API, „co może pójść nie tak”).
+Numery slajdów jak w PDF (0 = tytuł, 1 = plan). Jeśli limit to 7 minut, można pominąć slajd 5
+(komponenty) i 8 (przypadki użycia) – są w README.
 
-- **Podział:** Kamil – slajdy 0–3 (zadanie, tura preferencyjna, przypadki użycia),
-  Bartosz – 4–6 (optymalizator, przydział, model danych), Krzysztof – 7–10 (luki, zmiana terminu, testy).
-- Zmiana osoby bez zapowiadania – od razu treść.
-- Liczby muszą zostać takie, jak w tekście: każda jest wynikiem testu albo pomiaru (tabela na końcu).
+**Oś opowieści:** dostaliśmy projekt → przeszliśmy po ich diagramach z nowymi wymaganiami → znaleźliśmy,
+gdzie mogą powstać kolizje → zmieniliśmy ich schematy (przed / po) → dobudowaliśmy preferencje na ich
+infrastrukturze → testy to potwierdzają.
+
+**Podział:** Kamil – slajdy 0–4, Bartosz – 5–9, Krzysztof – 10–14.
 
 ---
 
-## Slajd 0 – Tytuł · Kamil · do 0:10
+## Slajd 0–1 – Tytuł, plan · Kamil · do 0:15
+> Dzień dobry. Przedstawiamy etap piąty: rozwinięcie projektu systemu zapisów, który dostaliśmy od innej grupy.
 
-> Dzień dobry. System zapisów na zajęcia, etap piąty: projekt końcowy.
+## Slajd 2 – Punkt wyjścia · Kamil · do 0:45
+> Dostaliśmy projekt z React, FastAPI, logowaniem przez SSO, PostgreSQL, Redisem i Celery do awansu
+> z listy oczekujących. Był spójny, więc zostawiliśmy architekturę, nazwy klas i format dokumentacji.
+> Nowe wymagania to testy braku kolizji – także przy zmianie harmonogramu i awansie z kolejki – oraz
+> zapisy według preferencji. Zaczęliśmy od tego, że przeszliśmy po każdym ich diagramie sekwencji
+> i szukaliśmy sytuacji, w których student dostaje kolidujące zajęcia.
 
-## Slajd 1 – Zadanie i punkt wyjścia · Kamil · do 0:50
+## Slajd 3 – Analiza · Kamil · do 1:45
+> Znaleźliśmy cztery takie miejsca. Pierwsze: przy zapisie reguły są sprawdzane przed transakcją,
+> a blokowana jest tylko sekcja. Student, który w dwóch kartach zapisuje się naraz na dwie sekcje
+> o tej samej porze, dostaje obie. Drugie: awans z kolejki nie blokuje kandydata, więc ten może
+> w tej samej chwili zapisać się gdzie indziej. Trzecie: zmiana terminu sekcji sprawdza tylko salę, nie
+> plany zapisanych. Czwarte: zapis czyta terminy sekcji bez jej blokady. Do tego doprecyzowaliśmy,
+> że styk zajęć nie jest kolizją, i dodaliśmy zapytanie kontrolne do testów.
 
-> Dostaliśmy dwa zadania. Pierwsze: zapisy nie w kolejności zgłoszeń, tylko według preferencji.
-> Student nadaje przedmiotom wagi, system optymalizuje przydział, a wagi można zmieniać w trakcie
-> zapisów. Drugie: testy braku kolizji w planie, także przy zmianie harmonogramu w trakcie zapisów
-> i przy przydziale z kolejki. Z otrzymanego projektu mieliśmy tylko slajdy, bez kodu, więc
-> rozszerzenie zbudowaliśmy na naszym działającym systemie. Wszystko, co pokażemy, jest
-> zaimplementowane i przetestowane: dziewięćdziesiąt sześć testów, z czego sześćdziesiąt jeden nowych.
+## Slajd 4 – Architektura przed / po · Kamil · do 2:15
+> W architekturze zmiany są małe. Dochodzi Celery Beat – harmonogram zadań, który jest częścią Celery
+> już obecnego w projekcie. Serwery aplikacji dostają dwa serwisy, workery – zadania przydziału, a baza – nowe tabele.
 
-## Slajd 2 – Tura preferencyjna · Kamil · do 1:45
+## Slajd 5 – Komponenty przed / po · Bartosz · do 2:45
+> Na poziomie komponentów: zielone są nowe – serwis preferencji, serwis przydziału i sam algorytm jako
+> osobna klasa bez bazy. Żółte są zmienione: zapis, kolejka i katalog dostały blokady i sprawdzanie
+> planów, a silnik reguł – metodę sprawdzającą plany zapisanych przy zmianie terminu.
 
-Wskazywać kroki 1–4, potem zrzut ekranu.
+## Slajd 6 – UC1a przed / po · Bartosz · do 3:25
+> Tak wygląda zmiana w ich diagramie zapisu. Zielone kroki są nowe: transakcja zaczyna się od blokady
+> studenta, potem blokujemy sekcję i dopiero wtedy sprawdzamy reguły. Dwa zapisy tego samego studenta
+> idą więc po kolei, a zmiana terminu sekcji nie może się wcisnąć między sprawdzenie a zapis.
 
-> Tura ma teraz tryb: kolejka albo preferencje. W turze preferencyjnej student dostaje sto punktów
-> i rozdziela je między przedmioty, a dla każdego przedmiotu układa akceptowane grupy od najbardziej
-> chcianej. Może to zmieniać dowolnie często, aż do zamknięcia tury. Co pięć minut system liczy
-> symulację i student widzi, co by dostał i dlaczego czegoś nie – tutaj po prawej. Jeśli nie
-> dostałby ważnego przedmiotu, przesuwa na niego punkty. Po zamknięciu tury przydział wykonuje się
-> raz i trafia do planów. Wspólna pula punktów sprawia, że waga coś znaczy, bo nie da się dać
-> wszystkiemu maksimum. Remisy rozstrzyga losowanie z zapisanym ziarnem, więc każdy wynik da się odtworzyć.
+## Slajd 7 – UC2 przed / po · Bartosz · do 3:50
+> W awansie z kolejki blokujemy kandydata. Tu kolejność blokad jest odwrotna, więc bez czekania – jeśli
+> kandydat jest akurat zajęty, transakcja się wycofuje i zadanie wraca do kolejki. Mechanizm ponawiania
+> był już w ich projekcie.
 
-## Slajd 3 – Przypadki użycia · Kamil · do 2:20
+## Slajd 8 – Przypadki użycia · Bartosz · do 4:15
+> Do ich przypadków użycia dodaliśmy siedem nowych. Student zgłasza preferencje i ogląda przewidywany
+> przydział, zegar uruchamia symulację i przydział, a administrator ustawia tryb zapisów, zmienia
+> harmonogram w trakcie zapisów i ogląda raport.
 
-> Nowe przypadki użycia: student zgłasza i zmienia preferencje oraz sprawdza przewidywany przydział.
-> Worker co pięć minut symuluje przydział, a po zamknięciu tury przydziela miejsca. Dziekanat tworzy
-> turę preferencyjną, może uruchomić symulację albo przydział ręcznie i ogląda raport. Przydział
-> korzysta z tych samych reguł co zwykły zapis: wymagania wstępne i wykrywanie kolizji.
+## Slajd 9 – Tura preferencji · Bartosz · do 5:00
+> Sam proces: dziekanat ustawia semestr w trybie preferencji z pulą stu punktów. Student rozdziela punkty
+> między przedmioty i układa sekcje w kolejności, a zmieniać to może do końca okna. Co pięć minut
+> system liczy symulację, więc student widzi, czego by nie dostał, i może przesunąć punkty. Po końcu
+> okna przydział wykonuje się raz. Wspólna pula sprawia, że waga coś znaczy, a remisy rozstrzyga
+> losowanie z zapisanym ziarnem, więc wynik da się odtworzyć.
 
-## Slajd 4 – Optymalizator · Bartosz · do 3:15
+## Slajd 10 – Model danych przed / po · Krzysztof · do 5:35
+> W bazie semestr dostał tryb i pulę, zapis – źródło. Doszły cztery tabele: wagi kursów, kolejność
+> sekcji, przebiegi przydziału i wyniki. Unikalny indeks pozwala na jeden przydział końcowy na semestr,
+> a każdy nieprzydzielony kurs musi mieć zapisany powód.
 
-> Celem jest maksymalna suma użyteczności. Użyteczność to waga razy współczynnik rangi grupy:
-> pierwszy wybór sto procent, drugi dziewięćdziesiąt i tak dalej. Waga decyduje więc, czy student
-> dostanie przedmiot, a ranga – którą grupę. Obowiązują te same ograniczenia co przy zapisie:
-> limity, brak kolizji, wymagania, jedna grupa danego typu, a wykład z laboratorium wszystko albo nic.
-> Przez kolizje problem jest NP-trudny, dlatego stosujemy heurystykę: najpierw zachłannie według wag,
-> potem poprawa lokalna – przenosimy kogoś do jego drugiej grupy albo zwalniamy tańszy przydział,
-> jeśli suma rośnie. Jakość zmierzyliśmy: na tysiącu losowych instancji porównanie z przeglądem
-> zupełnym daje średnio dziewięćdziesiąt dziewięć i osiem dziesiątych procent optimum, a w
-> dziewięćdziesięciu siedmiu procentach dokładnie optimum. Kierunek, czyli tysiąc studentów, liczy
-> się około siedmiu sekund.
+## Slajd 11 – UC9 · Krzysztof · do 6:05
+> Przydział końcowy uruchamia Celery Beat. Worker blokuje semestr, studentów i sekcje – w tej samej
+> kolejności co zapis – liczy przydział i sprawdza go niezależnie. Jeśli coś się nie zgadza, nic nie
+> zapisuje. Gdy worker padnie, transakcja się wycofuje, a przydział wykona się ponownie.
 
-## Slajd 5 – Przydział końcowy (sekwencja) · Bartosz · do 4:00
+## Slajd 12 – Algorytm · Krzysztof · do 6:50
+> Celem jest maksymalna suma wag, z karą za dalsze sekcje na liście. Kolizje czynią problem NP-trudnym,
+> więc mamy heurystykę: zachłannie według wag, potem poprawa lokalna, która przenosi ludzi między ich
+> akceptowanymi sekcjami. Zrobiliśmy prototyp i porównaliśmy go z przeglądem zupełnym na tysiącu
+> instancji: średnio dziewięćdziesiąt dziewięć i dziewięć dziesiątych procent optimum. Tysiąc studentów
+> liczy się w trzy sekundy.
 
-Pokazywać kroki 3, 4, 8–9, 10.
+## Slajd 13 – UC11 · Krzysztof · do 7:20
+> Zmiana harmonogramu w trakcie zapisów: system blokuje sekcję i jej studentów, sprawdza ich plany
+> i odrzuca zmianę, jeśli komuś powstałaby kolizja – z listą tych osób. Na dole widać, że w żadnej
+> kolejności z równoległym zapisem kolizja nie powstaje.
 
-> Przydział końcowy robi worker, w jednej transakcji. Blokuje turę, studentów i grupy – w tej samej
-> kolejności co zwykły zapis, więc nie ma zakleszczeń. Jeśli przydział już był, na przykład zrobiła
-> go druga instancja workera, kończy bez zmian. Wynik algorytmu sprawdza niezależna funkcja verify;
-> jeśli coś się nie zgadza, nic nie zapisujemy. Unikalny indeks w bazie gwarantuje jeden przydział
-> końcowy na turę, a ograniczenie limitu miejsc w bazie zostaje ostatnią siatką bezpieczeństwa.
-
-## Slajd 6 – Model danych · Bartosz · do 4:35
-
-> W bazie przybyło pięć tabel. Preferencje to waga przedmiotu i ranga grupy, powiązane kluczem
-> złożonym, więc grupę można wybrać tylko w zgłoszonym przedmiocie. Przebieg przydziału zapisuje
-> ziarno i statystyki, a każdy nieprzydzielony przedmiot ma w bazie wymagany powód. Przy grupie
-> doszła wersja harmonogramu – o niej za chwilę.
-
-## Slajd 7 – Dwie luki · Krzysztof · do 5:20
-
-> Pisząc testy kolizji, trafiliśmy na dwie luki, które sami wpisaliśmy w etapie trzecim jako znane
-> ograniczenia. Dziekanat mógł przenieść termin grupy bez sprawdzania planów zapisanych studentów.
-> A zapis brał terminy z pamięci podręcznej procesu, więc przez dziesięć sekund inny proces mógł
-> przepuścić kolizję. Teraz zmiana terminu blokuje grupę i jej studentów i jest odrzucana, jeśli
-> u kogokolwiek powstałaby kolizja. Każda zmiana podnosi wersję harmonogramu, a zapis i awans
-> z kolejki porównują ją pod blokadą grupy. Do audytu doszło wykrywanie kolizji, napisane w SQL
-> niezależnie od kodu, który decyduje o zapisie.
-
-## Slajd 8 – Zmiana terminu vs zapis (sekwencja) · Krzysztof · do 5:55
-
-> Tu oba przypadki naraz. Jeśli pierwszy jest dziekanat, zapis ze starym terminem w pamięci widzi
-> pod blokadą nowszą wersję, wczytuje aktualne terminy i odmawia. Jeśli pierwszy jest student,
-> dziekanat widzi go wśród zapisanych i dostaje odmowę z jego numerem indeksu.
-
-## Slajd 9 – Testy · Krzysztof · do 6:45
-
+## Slajd 14 – Testy · Krzysztof · do 8:10
 > Każdy test ma trzy części: przygotowanie, wywołanie metod z konkretnymi parametrami i weryfikację.
-> Tu przykład: student ma stary termin w pamięci podręcznej, dziekanat przenosi grupę, zapis musi
-> wykryć kolizję. Mamy dwadzieścia trzy testy kolizji, siedemnaście tury preferencyjnej
-> i dwadzieścia jeden samego optymalizatora. Wyścigi powtarzamy po kilka razy. Sprawdziliśmy też,
-> że testy naprawdę działają: po wyłączeniu porównania wersji cztery z nich padają. Wszystkie
-> scenariusze z wywołaniami są w pliku TESTY.
-
-## Slajd 10 – Dziękujemy · Krzysztof · do 7:00
-
-> Dziękujemy. Chętnie odpowiemy na pytania.
+> Ten przykład to dwa równoległe zapisy tego samego studenta. Na otrzymanym projekcie nie
+> przechodzi, po naszej zmianie przechodzi. Mamy czternaście scenariuszy kolizji, dwanaście dla
+> preferencji i osiem testów algorytmu, które są zaimplementowane i przechodzą. Po każdym teście
+> zapytanie kontrolne sprawdza, czy w bazie nie ma kolizji. Dziękujemy.
 
 ---
 
 ## Przygotowanie do pytań
 
-| Pytanie | Odpowiedź (slajd zapasowy) |
+| Pytanie | Odpowiedź |
 |---|---|
-| Dlaczego nie solver ILP? | Optimum tylko dla małych tur, ciężka zależność binarna, nieprzewidywalny czas dla tysięcy studentów. Mamy sformułowanie ILP w README §8 i zmierzoną jakość heurystyki względem optimum. |
-| Czy student może oszukać system wagami? | Pula jest wspólna i stała, więc więcej punktów na jeden przedmiot oznacza mniej na inne. Symulacja pokazuje tylko jego wynik, nie cudze wagi. |
-| Co jeśli dwóch studentów ma tę samą wagę? | Los z ziarnem; jeden los na studenta na cały przebieg, ziarno w `allocation_run` – wynik da się odtworzyć (test P11, A2). |
-| Co jeśli tura zamyka się w trakcie zapisu preferencji? | `FOR SHARE` na turze: zgłoszenie albo wchodzi do przydziału, albo `ROUND_CLOSED` (test P5). Zapasowy slajd „co może pójść nie tak”. |
-| Co jeśli worker padnie w trakcie przydziału? | Transakcja się wycofuje, tura nadal „bez FINAL”, następny przebieg robi przydział od nowa. Dwa workery: `UNIQUE` na FINAL. |
-| Co z nieprzydzielonymi? | Dostają powiadomienie z powodem; po turze preferencyjnej dziekanat planuje turę kolejkową (uzupełniającą). Ograniczenie opisane w README §12. |
-| Skąd wiadomo, że brak kolizji? | Każdy test kończy się audytem z niezależną implementacją kolizji w SQL; test K17 pokazuje, że audyt wykrywa wstrzykniętą kolizję. |
-| Dlaczego nie przejęliście architektury z otrzymanego projektu? | Był tylko w slajdach; nasza architektura rozwiązuje te same problemy bez Redis/Celery (outbox, worker na bazie). Przejęliśmy jawne „co jeśli” w przypadkach użycia i dziennik operacji systemowych (README §1.3). |
-
-## Źródła liczb
-
-| Liczba | Skąd |
-|---|---|
-| 96 testów (61 nowych: 23 + 17 + 21) | `uv run python -m pytest --collect-only -q` |
-| 99,8% / 97,1% / 80% (heurystyka), 98,1% / 83,9% / 55% (zachłanny) | 1000 instancji `random_instance` vs `exact_optimum` z `tests/test_allocation_domain.py` |
-| ok. 7 s dla 1000 studentów × 6 przedmiotów | instancja z testu A11 (`test_scale_one_program_round_is_fast`), pomiar na maszynie deweloperskiej |
-| K13–K16 padają po wyłączeniu wersji | ręczna mutacja `_current_target` (zawsze zwraca cache) |
-| 100 pkt, symulacja co 5 min | `DEFAULT_POINTS_BUDGET`, `allocation_preview_interval_s = 300` |
+| Dlaczego zmienialiście ich zapis, skoro działał? | Działał dla jednego żądania; przy dwóch równoległych żądaniach tego samego studenta powstawała kolizja (test K8 nie przechodzi na ich wersji). |
+| Dlaczego `NOWAIT` w awansie? | Tam blokujemy sekcję, potem studenta – odwrotnie niż przy zapisie. Czekanie mogłoby dać zakleszczenie; `NOWAIT` daje szybki błąd i ponowienie zadania Celery. |
+| Dlaczego nie solver ILP? | Ciężka zależność, nieprzewidywalny czas dla tysięcy studentów; heurystyka ma zmierzone 99,9% optimum (README §8). |
+| Czy można oszukać wagami? | Pula jest wspólna – więcej punktów na jeden kurs to mniej na inne. Symulacja pokazuje tylko własny wynik. |
+| Co z nieprzydzielonymi? | Dostają powód; po turze preferencji dziekanat może otworzyć zapisy uzupełniające (FCFS) z listami oczekujących. |
+| Co jeśli worker padnie? | `ROLLBACK`, semestr dalej bez przydziału końcowego, Celery ponawia; unikalny indeks wyklucza podwójny przydział. |
+| Skąd wiadomo, że testy coś sprawdzają? | Wyrocznia SQL niezależna od silnika reguł; K14 pokazuje, że wykrywa wstrzykniętą kolizję. |

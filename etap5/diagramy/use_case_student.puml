@@ -1,0 +1,54 @@
+@startuml use_case_student
+!pragma layout smetana
+left to right direction
+skinparam shadowing false
+skinparam usecase {
+  BackgroundColor white
+  BorderColor black
+  BackgroundColor<<nowy>> #D9F2E0
+  BorderColor<<nowy>> #1B7F3B
+  BackgroundColor<<zmieniony>> #FFF6CC
+  BorderColor<<zmieniony>> #C77700
+}
+hide stereotype
+actor Student
+actor "Niezalogowany\nużytkownik" as Guest
+Student --|> Guest
+rectangle "System zapisu na zajęcia – Przypadki użycia (1/2) – student (otrzymany projekt + etap 5)" {
+  usecase "Zaloguj się (UC6)" as L
+  usecase "Przeglądaj / wyszukaj\nw katalogu (UC5a)" as C
+  usecase "Przeglądaj\nharmonogram (UC5b)" as H
+  usecase "Zapisz się\nna zajęcia (UC1a)" as E <<zmieniony>>
+  usecase "Dołącz do listy\noczekujących (UC1b)" as W <<zmieniony>>
+  usecase "Wypisz się\nz sekcji (UC3)" as D
+  usecase "Wypisz się z kolejki\ndo oczekujących (UC4)" as DW
+  usecase "Automatyczny zapis\nz kolejki (UC2)" as A <<zmieniony>>
+  usecase "Zweryfikuj\nwarunki zapisu" as V <<zmieniony>>
+  usecase "Sprawdź wymagania\nwstępne" as P
+  usecase "Wykryj konflikt\nharmonogramów" as K
+  usecase "Sprawdź dostępność\nmiejsc" as S
+  usecase "Zgłoś / zmień\npreferencje (UC7)" as UC7 <<nowy>>
+  usecase "Sprawdź przewidywany\nprzydział (UC8)" as UC8 <<nowy>>
+  usecase "Symuluj przydział\n(UC10)" as UC10 <<nowy>>
+}
+Guest -- L
+Student -- C
+Student -- H
+Student -- E
+Student -- D
+Student -- DW
+Student -- UC7
+Student -- UC8
+W ..> E : <<extend>>
+E ..> V : <<include>>
+A ..> D : <<extend>>
+A ..> V : <<include>>
+V ..> P : <<include>>
+V ..> K : <<include>>
+V ..> S : <<include>>
+UC7 ..> V : <<include>>\n(ostrzeżenia)
+UC8 ..> UC10 : <<include>>
+legend bottom
+  <back:#D9F2E0>  nowy  </back> przypadek użycia etapu 5     <back:#FFF6CC>  zmieniony  </back> przypadek użycia z otrzymanego projektu     pozostałe – bez zmian
+endlegend
+@enduml
