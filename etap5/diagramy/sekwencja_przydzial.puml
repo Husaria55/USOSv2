@@ -1,0 +1,64 @@
+@startuml sekwencja_przydzial
+title UC30 / UC31 – przydział miejsc według preferencji (worker; dziekanat: POST /api/admin/rounds/{id}/allocation[/preview])
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+autonumber
+
+participant "Worker\n(pętla co 5 s)" as w
+participant "db.run_transaction" as tx
+participant "AllocationService\nrun_allocation()" as svc
+participant "loaders" as ld
+participant "domain.allocation\nallocate() / verify()" as dom
+participant "Enrollment-\nService" as es
+database "PostgreSQL" as db
+
+== UC31: symulacja w otwartej turze (co allocation_preview_interval_s = 300 s) ==
+w -> svc : rounds_to_preview() → tury PREFERENCES i OPEN
+w -> tx : run_allocation(round_id, PREVIEW)
+svc -> db : odczyt tury, zgłoszeń, grup, planów, zaliczeń (BEZ blokad)
+svc -> dom : allocate(...) ; verify(...)
+svc -> db : INSERT allocation_run (PREVIEW) + allocation_result + allocation_assignment
+svc -> db : DELETE starszych PREVIEW tej tury
+note right of db : enrollment bez zmian –\nto tylko podgląd dla studentów (UC29)
+
+== UC17 → UC30: tura zamknięta o closes_at, potem przydział końcowy ==
+w -> db : apply_schedule: tura → CLOSED (FOR UPDATE na turze)
+note right of db : od teraz zapis preferencji → 409 ROUND_CLOSED\n(save_preferences trzyma FOR SHARE na turze)
+w -> svc : rounds_to_allocate() → PREFERENCES, CLOSED, bez FINAL
+w -> tx : run_allocation(round_id, FINAL)
+tx -> db : BEGIN
+svc -> ld : round_info(round_id, lock="UPDATE")
+ld -> db : SELECT ... FROM enrollment_round FOR UPDATE
+break istnieje już FINAL (inna instancja workera / dziekanat)
+  svc --> w : Conflict ALREADY_ALLOCATED → pomija (to nie błąd)
+end
+break tura nie CLOSED (wywołanie dziekanatu)
+  svc --> w : 409 ROUND_NOT_CLOSED
+end
+svc -> db : zgłoszenia: course_preference JOIN section_preference JOIN section
+svc -> ld : lock_students(ids) – FOR UPDATE, rosnąco po id
+svc -> ld : lock_sections(ids) – FOR UPDATE, rosnąco po id
+note right of db : kolejność tura → student → grupa jak przy zapisie:\nzapisy innych kierunków do tych grup czekają,\nnie ma zakleszczeń; stan nie zmieni się do COMMIT
+svc -> ld : load_targets (aktualne terminy, bez cache),\nwolne miejsca, plans(ids), passed_by_student(ids)
+svc -> dom : allocate(requests, profiles, offers, prerequisites, seed)
+dom -> dom : 1. options_for: kombinacje bez kolizji / odmowy\n2. zachłannie: malejąco po wadze, remis – los (seed)\n3. poprawa lokalna (przeniesienia, łańcuchy, zwolnienia)
+dom --> svc : AllocationResult (assignments, unassigned + powody,\ntotal_utility, upper_bound)
+svc -> dom : verify(result, ...) – niezależna kontrola ograniczeń
+break naruszenie (błąd w algorytmie)
+  svc --> tx : RuntimeError → ROLLBACK, nic nie zapisano, log błędu
+end
+svc -> db : INSERT allocation_run (FINAL, seed, statystyki)
+note right of db : UNIQUE allocation_one_final –\ndrugi FINAL dla tury niemożliwy
+svc -> db : INSERT allocation_result, allocation_assignment
+svc -> db : INSERT enrollment (source='ALLOCATION') ×K
+svc -> db : UPDATE section SET enrolled_count = enrolled_count + n
+note right of db : CHECK (enrolled_count <= capacity)\nodrzuci całość przy przepełnieniu
+svc -> es : cancel_same_kind(...) – wpisy na listach tego samego\nprzedmiotu i typu → CANCELLED
+svc -> db : INSERT notification (ALLOCATED / NOT_ALLOCATED) ×studenci
+tx -> db : COMMIT
+w -> w : log: przydzielono 950/1000, użyteczność / górne ograniczenie
+note over w, db
+  Awaria workera w trakcie: ROLLBACK, w kolejnym przebiegu tura nadal „bez FINAL”
+  → przydział wykonuje się ponownie od zera (idempotentnie).
+end note
+@enduml

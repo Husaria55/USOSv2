@@ -1,0 +1,100 @@
+@startuml er_preferencje
+!pragma layout smetana
+title Diagram ER – rozszerzenie etapu 5: tury preferencyjne i przydział (migracja 0002)
+skinparam shadowing false
+skinparam defaultFontSize 11
+hide circle
+skinparam linetype ortho
+
+entity "enrollment_round\n(zmieniona)" as er {
+  * **id** : bigserial <<PK>>
+  --
+  term_id : bigint <<FK term>>
+  name, opens_at, closes_at, status
+  **mode : varchar(16)** QUEUE | PREFERENCES
+  **points_budget : smallint** NULL
+  CHECK (mode='PREFERENCES') = (points_budget IS NOT NULL)
+}
+entity "section\n(zmieniona)" as sec {
+  * **id** : bigserial <<PK>>
+  --
+  course_id, term_id, code, kind,
+  capacity, enrolled_count, waitlist_limit
+  **schedule_version : integer** = 0
+}
+entity "enrollment\n(zmieniona)" as en {
+  * **id** : bigserial <<PK>>
+  --
+  student_id, section_id, status, ...
+  source : DIRECT | WAITLIST | ADMIN | **ALLOCATION**
+}
+entity "app_user" as u {
+  * **id** : bigserial <<PK>>
+  --
+  ...
+}
+entity "course" as c {
+  * **id** : bigserial <<PK>>
+  --
+  code, name, ...
+}
+
+entity "course_preference" as cp #E7F0FF {
+  * **round_id** : bigint <<PK, FK>>
+  * **student_id** : bigint <<PK, FK>>
+  * **course_id** : bigint <<PK, FK>>
+  --
+  weight : smallint  CHECK > 0
+  updated_at : timestamptz
+}
+entity "section_preference" as sp #E7F0FF {
+  * **round_id, student_id, section_id** <<PK>>
+  --
+  course_id : bigint
+  (round_id, student_id, course_id) <<FK course_preference>> ON DELETE CASCADE
+  section_id : bigint <<FK section>>
+  rank : smallint  CHECK >= 1
+}
+entity "allocation_run" as run #E7F0FF {
+  * **id** : bigserial <<PK>>
+  --
+  round_id : bigint <<FK>>
+  kind : PREVIEW | FINAL
+  seed : bigint
+  created_at : timestamptz
+  students, requests, assigned : integer
+  total_utility, upper_bound : numeric(12,2)
+  UNIQUE (round_id) WHERE kind='FINAL'
+}
+entity "allocation_result" as res #E7F0FF {
+  * **run_id, student_id, course_id** <<PK>>
+  --
+  run_id <<FK>> ON DELETE CASCADE
+  student_id <<FK app_user>>, course_id <<FK course>>
+  weight : smallint
+  status : ASSIGNED | UNASSIGNED
+  utility : numeric(8,2)
+  reason : varchar(255) NULL
+  CHECK (status='UNASSIGNED') = (reason IS NOT NULL)
+}
+entity "allocation_assignment" as aa #E7F0FF {
+  * **run_id, student_id, section_id** <<PK>>
+  --
+  course_id : bigint
+  (run_id, student_id, course_id) <<FK allocation_result>>
+  section_id <<FK section>>
+}
+
+er ||--o{ cp
+u ||--o{ cp
+c ||--o{ cp
+cp ||--|{ sp
+sec ||--o{ sp
+er ||--o{ run
+run ||--o{ res
+u ||--o{ res
+c ||--o{ res
+res ||--o{ aa
+sec ||--o{ aa
+sec ||--o{ en
+@enduml

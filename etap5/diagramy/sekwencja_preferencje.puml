@@ -1,0 +1,62 @@
+@startuml sekwencja_preferencje
+title UC28 / UC29 – zgłoszenie i zmiana preferencji (PUT /api/me/rounds/{id}/preferences)
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+autonumber
+
+actor Student
+participant "SPA\nPreferencje" as spa
+participant "API\nstudent.save_preferences" as api
+participant "db.run_transaction" as tx
+participant "PreferenceService\nsave_preferences()" as svc
+participant "loaders" as ld
+participant "domain\nallocation" as dom
+database "PostgreSQL" as db
+
+Student -> spa : ustawia wagi (suma <= pula),\nukłada grupy, „Zapisz preferencje”
+spa -> api : PUT {courses: [{course_id, weight, section_ids[]}]}
+api -> api : JWT, rola STUDENT; Pydantic:\nweight 1..1000, 1..30 grup, <= 20 przedmiotów
+break niepoprawne dane wejściowe
+  api --> spa : 422 VALIDATION
+end
+api -> api : write_slot(user_id)  (limit + bramka, jak przy zapisie)
+api -> tx : run_transaction(save_preferences)
+tx -> svc : save_preferences(s, student_id, round_id, items)
+svc -> ld : round_info(round_id, lock="SHARE")
+ld -> db : SELECT ... FROM enrollment_round WHERE id=$1 FOR SHARE
+note right of db : 1. tura (SHARE): zamknięcie tury\n(FOR UPDATE) czeka na nas albo my na nie
+svc -> ld : lock_student(student_id)
+ld -> db : SELECT ... FROM app_user ... FOR UPDATE
+note right of db : 2. student: dwie karty przeglądarki\nzapisują po kolei (ostatnia wygrywa)
+break tura kolejkowa
+  api --> spa : 409 NOT_PREFERENCE_ROUND
+end
+break tura nie OPEN albo nie obejmuje kierunku studenta
+  api --> spa : 409 ROUND_CLOSED
+end
+svc -> db : SELECT id, course_id, kind, term_id FROM section WHERE id = ANY($1)
+svc -> dom : validate_preferences(items, budget, term_id, sections)
+break błędy (pierwszy z listy)
+  dom --> svc : [Rejection]
+  tx -> db : ROLLBACK
+  api --> spa : 409 BUDGET_EXCEEDED | BAD_SECTION | DUPLICATE_COURSE |\nDUPLICATE_SECTION | NO_SECTIONS | TOO_MANY_*
+end
+svc -> db : DELETE FROM course_preference WHERE round_id AND student_id\n(kaskadowo section_preference)
+svc -> db : INSERT course_preference (waga) ×N
+svc -> dom : choices_by_kind(section_ids) → ranga w obrębie typu zajęć
+svc -> db : INSERT section_preference (rank) ×M
+group ostrzeżenia (te same reguły co przydział, bez blokowania zapisu)
+  svc -> ld : load_targets, student_plan, passed_courses
+  svc -> dom : options_for(request, profile, offers, prerequisites)
+  dom --> svc : kombinacje grup albo Rejection\n(PREREQUISITES, CONFLICT, ALREADY_ENROLLED, NO_SECTIONS)
+end
+tx -> db : COMMIT
+api --> spa : 200 {used_points, budget, warnings[]}
+spa -> Student : „Zapisano (70/100 pkt)” + ostrzeżenia przy przedmiotach
+
+== UC29: przewidywany przydział ==
+spa -> api : GET /api/me/rounds/{id}/allocation
+api -> db : ostatni przebieg (FINAL, a jeśli brak – najnowszy PREVIEW)\n+ allocation_result + allocation_assignment studenta
+api --> spa : {run: {kind, created_at}, results: [{code, status, sections, reason}]}
+note over spa : student widzi, że np. nie dostanie IO\n(„Brak miejsc…”) i podnosi wagę IO – krok 1
+@enduml

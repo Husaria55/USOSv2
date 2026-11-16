@@ -5,6 +5,7 @@ import Login from "./pages/Login";
 import Catalog from "./pages/Catalog";
 import Plan from "./pages/Plan";
 import Waitlists from "./pages/Waitlists";
+import Preferences from "./pages/Preferences";
 import LecturerSections from "./pages/LecturerSections";
 import AdminRounds from "./pages/AdminRounds";
 import AdminCatalog from "./pages/AdminCatalog";
@@ -58,7 +59,7 @@ export default function App() {
   if (!user) return <Login onLogin={(token, u) => { auth.token = token; setUser(u); }} />;
 
   const links: [string, string][] = {
-    STUDENT: [["/zapisy", "Zapisy"], ["/plan", "Mój plan"], ["/listy", "Listy oczekujących"]],
+    STUDENT: [["/zapisy", "Zapisy"], ["/preferencje", "Preferencje"], ["/plan", "Mój plan"], ["/listy", "Listy oczekujących"]],
     LECTURER: [["/grupy", "Moje grupy"]],
     ADMIN: [["/admin/tury", "Tury"], ["/admin/katalog", "Katalog"], ["/admin/studenci", "Studenci"],
             ["/admin/dane", "Dane i audyt"], ["/grupy", "Listy grup"]],
@@ -83,6 +84,7 @@ export default function App() {
           <Route path="/zapisy" element={<Need><Catalog /></Need>} />
           <Route path="/plan" element={<Need><Plan /></Need>} />
           <Route path="/listy" element={<Need><Waitlists /></Need>} />
+          <Route path="/preferencje" element={<Need><Preferences /></Need>} />
         </>}
         {user.role !== "STUDENT" && <Route path="/grupy" element={<Need><LecturerSections /></Need>} />}
         {user.role === "ADMIN" && <>

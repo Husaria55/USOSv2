@@ -1,7 +1,19 @@
-"""Tury zapisów: kto może się zapisywać i kiedy worker zmienia status tury."""
+"""Tury zapisów: kto może się zapisywać i kiedy worker zmienia status tury.
+
+Tura ma tryb:
+- QUEUE: zapis "kto pierwszy, ten lepszy" z listami oczekujących (etap 3),
+- PREFERENCES: student zgłasza preferencje (wagi przedmiotów), miejsca przydziela
+  optymalizator po zamknięciu tury (app/domain/allocation.py).
+"""
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
+
+
+class RoundMode(StrEnum):
+    QUEUE = "QUEUE"
+    PREFERENCES = "PREFERENCES"
 
 
 @dataclass(frozen=True)
@@ -11,6 +23,8 @@ class RoundInfo:
     opens_at: datetime
     closes_at: datetime
     program_ids: frozenset[int]  # pusty zbiór = tura dla wszystkich kierunków
+    mode: RoundMode = RoundMode.QUEUE
+    points_budget: int | None = None
 
 
 def covers(round_: RoundInfo, program_id: int) -> bool:
@@ -18,8 +32,17 @@ def covers(round_: RoundInfo, program_id: int) -> bool:
 
 
 def student_can_enroll(rounds: Iterable[RoundInfo], program_id: int) -> bool:
-    """Czy któraś z otwartych tur semestru obejmuje kierunek studenta."""
-    return any(r.status == "OPEN" and covers(r, program_id) for r in rounds)
+    """Czy któraś z otwartych tur kolejkowych semestru obejmuje kierunek studenta.
+
+    Tura preferencyjna nie pozwala na bezpośredni zapis ani wypis - w niej student
+    tylko zgłasza preferencje, a o miejscach decyduje przydział po zamknięciu tury.
+    """
+    return any(r.status == "OPEN" and r.mode is RoundMode.QUEUE and covers(r, program_id) for r in rounds)
+
+
+def can_submit_preferences(round_: RoundInfo, program_id: int) -> bool:
+    """Czy student danego kierunku może teraz zgłaszać / zmieniać preferencje w tej turze."""
+    return round_.mode is RoundMode.PREFERENCES and round_.status == "OPEN" and covers(round_, program_id)
 
 
 def scheduled_transition(round_: RoundInfo, now: datetime) -> str | None:

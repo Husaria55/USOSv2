@@ -19,7 +19,8 @@ from app.db import engine
 from app.security import hash_password
 
 PASSWORD = "haslo123"
-TABLES = ("notification, waitlist_entry, enrollment, completed_course, meeting, section_lecturer, section, "
+TABLES = ("allocation_assignment, allocation_result, allocation_run, section_preference, course_preference, "
+          "notification, waitlist_entry, enrollment, completed_course, meeting, section_lecturer, section, "
           "round_program, enrollment_round, room, term, course_prerequisite, course, app_user, program")
 BLOCKS = [(time(8, 0), time(9, 30)), (time(9, 45), time(11, 15)), (time(11, 30), time(13, 0)),
           (time(13, 15), time(14, 45)), (time(15, 0), time(16, 30)), (time(16, 45), time(18, 15))]
@@ -115,12 +116,14 @@ def build_demo(d: Data, pw: str, now: datetime) -> None:
             grade = Decimal("4.5") if i == 0 else Decimal(rng.choice(["2.0", "3.0", "3.5", "4.0", "4.5", "5.0"]))
             d.add("completed_course", student_id=sid, course_id=courses[code], term_id=prev, grade=grade)
 
-    rounds = [("Tura 1 – INF", "INF", now - timedelta(hours=1), now + timedelta(days=7), "OPEN"),
-              ("Tura 1 – MAT", "MAT", now + timedelta(minutes=30), now + timedelta(days=7), "PLANNED"),
-              ("Tura 1 – FIZ", "FIZ", now + timedelta(hours=1), now + timedelta(days=7), "PLANNED"),
-              ("Tura 2 – wszyscy", None, now + timedelta(days=8), now + timedelta(days=10), "PLANNED")]
-    for name, prog, a, b, st in rounds:
-        rid = d.add("enrollment_round", term_id=term, name=name, opens_at=a, closes_at=b, status=st)
+    # MAT: tura preferencyjna (etap 5) - studenci MAT (np. s400003) rozdzielają 100 pkt między przedmioty
+    rounds = [("Tura 1 – INF", "INF", now - timedelta(hours=1), now + timedelta(days=7), "OPEN", "QUEUE"),
+              ("Preferencje – MAT", "MAT", now - timedelta(hours=1), now + timedelta(days=7), "OPEN", "PREFERENCES"),
+              ("Tura 1 – FIZ", "FIZ", now + timedelta(hours=1), now + timedelta(days=7), "PLANNED", "QUEUE"),
+              ("Tura 2 – wszyscy", None, now + timedelta(days=8), now + timedelta(days=10), "PLANNED", "QUEUE")]
+    for name, prog, a, b, st, mode in rounds:
+        rid = d.add("enrollment_round", term_id=term, name=name, opens_at=a, closes_at=b, status=st, mode=mode,
+                    points_budget=100 if mode == "PREFERENCES" else None)
         if prog:
             d.add("round_program", round_id=rid, program_id=programs[prog])
 

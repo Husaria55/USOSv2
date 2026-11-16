@@ -1,0 +1,33 @@
+@startuml sekwencja_zmiana_terminu_skrot
+title UC32 – zmiana terminu w trakcie tury vs równoległy zapis (skrót)
+skinparam shadowing false
+skinparam defaultFontSize 15
+skinparam sequenceMessageAlign left
+autonumber
+
+actor Dziekanat
+participant "CatalogService\nupdate_meeting" as cat
+database "PostgreSQL" as db
+participant "EnrollmentService\nenroll (inny proces)" as enr
+actor Student
+
+Dziekanat -> cat : przenieś termin grupy B
+cat -> db : blokada grupy B (FOR UPDATE)
+cat -> db : zapisani do B: FOR UPDATE NOWAIT
+note right of db : zajęty student → 55P03\n→ ponowienie transakcji
+cat -> cat : plany zapisanych vs nowy termin
+break kolizja u kogokolwiek
+  cat --> Dziekanat : 409 STUDENT_CONFLICT [indeks: grupy]
+end
+cat -> db : UPDATE meeting; schedule_version + 1; COMMIT
+
+Student -> enr : zapis do B
+enr -> enr : check_student na terminach z cache (wersja v)
+enr -> db : blokada grupy B → schedule_version = v + 1
+alt wersja inna
+  enr -> db : świeże terminy B
+  enr --> Student : 409 CONFLICT
+else ta sama
+  enr --> Student : ENROLLED
+end
+@enduml

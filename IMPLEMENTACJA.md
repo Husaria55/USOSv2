@@ -15,7 +15,8 @@ docker compose run --rm api python -m app.seed       # dane demo (mock-up: IO, B
 ```
 
 - aplikacja: http://localhost:8080 – konta `admin@uczelnia.pl`, `dr.zachara@uczelnia.pl`,
-  `s400001@uczelnia.pl`, hasło `haslo123`,
+  `s400001@uczelnia.pl` (INF – tura kolejkowa), `s400003@uczelnia.pl` (MAT – **tura preferencyjna**,
+  zakładka „Preferencje”), hasło `haslo123`,
 - wysłane e-maile (Mailpit): http://localhost:8025,
 - dokumentacja API (OpenAPI): http://localhost:8080/api/docs.
 
@@ -32,7 +33,7 @@ Na produkcji trzeba ustawić `USOS_JWT_SECRET` (bez tego API loguje ostrzeżenie
 ```bash
 docker compose up -d db
 cd backend && uv sync && uv run alembic upgrade head
-uv run pytest                       # 35 testów, w tym współbieżne na prawdziwym PostgreSQL
+uv run python -m pytest             # 96 testów, w tym współbieżne na prawdziwym PostgreSQL
 uv run uvicorn app.main:app --reload
 cd ../frontend && npm install && npm run dev     # http://localhost:5173, proxy /api -> :8000
 ```
@@ -117,10 +118,21 @@ docker run --rm --network usosv2_default -v "$PWD/loadtest:/s" grafana/k6:1.3.0 
 - `enrollment.created_by` / `dropped_by` – kto wykonał operację (ślad dla dziekanatu i RODO).
 - `notification.read_at`, `attempts` – powiadomienia w aplikacji i ponawianie wysyłki.
 
+## Etap 5: tury preferencyjne i zmiana terminów w trakcie tury
+
+Projekt i uzasadnienia: [`etap5/README.md`](etap5/README.md), scenariusze testowe: [`etap5/TESTY.md`](etap5/TESTY.md).
+
+- Migracja `0002_preferences` (`docker compose up` stosuje ją sama; `alembic downgrade 0001` cofa).
+- Tura w trybie `PREFERENCES`: student w zakładce „Preferencje” rozdziela pulę punktów i układa grupy;
+  worker co `USOS_ALLOCATION_PREVIEW_INTERVAL_S` (300 s) liczy symulację, a po zamknięciu tury przydział
+  końcowy. Dziekanat: panel „Tury” (tryb, pula, „Symulacja”, „Przydziel”, „Raport”).
+- Przeniesienie terminu (✎ przy terminie w „Katalogu” dziekanatu) jest odrzucane, jeśli koliduje
+  z planem zapisanego studenta (`STUDENT_CONFLICT`).
+
 ## Znane ograniczenia
 
 - Limit żądań i cache są per proces (przy N instancjach limit jest przybliżony).
-- Zmiana terminu grupy przez dziekanat w trakcie tury dociera do zapisów w innych procesach
-  po najwyżej 10 s; nie weryfikuje też ponownie planów już zapisanych studentów.
+- Przydział preferencyjny: tylko wagi i losowanie (bez priorytetu roku studiów); nieprzydzieleni
+  nie trafiają sami na listy oczekujących.
 - Kursy nie są przypisane do kierunków – tura ogranicza, kto i kiedy się zapisuje, nie na co.
 - Logowanie hasłem; docelowo SSO uczelni.

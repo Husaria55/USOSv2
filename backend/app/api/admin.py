@@ -7,7 +7,8 @@ from app.api import schemas as sc
 from app.api.deps import CurrentUser, admin, catalog_cache, session
 from app.db import run_transaction
 from app.domain.enrollment_rules import Mode
-from app.services import audit, catalog, enrollment, loaders, queries, records, rounds, users
+from app.domain.rounds import RoundMode
+from app.services import allocation, audit, catalog, enrollment, loaders, queries, records, rounds, users
 
 router = APIRouter(prefix="/api/admin")
 
@@ -101,6 +102,14 @@ async def add_meeting(section_id: int, body: sc.NewMeeting, _: CurrentUser = Dep
         s, section_id, body.weekday, body.start, body.end, body.parity, body.room_id))}
 
 
+@router.put("/meetings/{meeting_id}")
+async def update_meeting(meeting_id: int, body: sc.MeetingUpdate, _: CurrentUser = Depends(admin)):
+    """UC32: zmiana terminu (także w trakcie tury) - odmowa, gdy koliduje z planem zapisanego studenta."""
+    await tx(lambda s: catalog.update_meeting(s, meeting_id, body.weekday, body.start, body.end, body.parity,
+                                              body.room_id))
+    return {"status": "OK"}
+
+
 @router.delete("/meetings/{meeting_id}")
 async def remove_meeting(meeting_id: int, _: CurrentUser = Depends(admin)):
     await tx(lambda s: catalog.remove_meeting(s, meeting_id))
@@ -149,7 +158,8 @@ async def list_rounds(term_id: int, _: CurrentUser = Depends(admin), db=Depends(
 @router.post("/rounds")
 async def create_round(body: sc.NewRound, _: CurrentUser = Depends(admin)):
     return {"id": await tx(lambda s: rounds.create_round(
-        s, body.term_id, body.name, body.opens_at, body.closes_at, body.program_ids))}
+        s, body.term_id, body.name, body.opens_at, body.closes_at, body.program_ids, RoundMode(body.mode),
+        body.points_budget))}
 
 
 @router.patch("/rounds/{round_id}")
@@ -169,6 +179,27 @@ async def open_round(round_id: int, _: CurrentUser = Depends(admin)):
 async def close_round(round_id: int, _: CurrentUser = Depends(admin)):
     expired = await tx(lambda s: rounds.close_round(s, round_id))
     return {"status": "CLOSED", "expired_waitlist_entries": expired}
+
+
+# --- przydział według preferencji (UC30, UC31, UC33) -------------------------
+
+@router.post("/rounds/{round_id}/allocation/preview")
+async def preview_allocation(round_id: int, body: sc.AllocationIn = sc.AllocationIn(), _: CurrentUser = Depends(admin)):
+    """UC31: symulacja przydziału na bieżących preferencjach (nic nie zapisuje do planów)."""
+    return asdict(await run_transaction(lambda s: allocation.run_allocation(s, round_id, allocation.PREVIEW,
+                                                                            seed=body.seed)))
+
+
+@router.post("/rounds/{round_id}/allocation")
+async def final_allocation(round_id: int, body: sc.AllocationIn = sc.AllocationIn(), _: CurrentUser = Depends(admin)):
+    """UC30: przydział końcowy po zamknięciu tury (zwykle robi go worker; tu na żądanie dziekanatu)."""
+    return asdict(await tx(lambda s: allocation.run_allocation(s, round_id, allocation.FINAL, seed=body.seed)))
+
+
+@router.get("/rounds/{round_id}/allocation")
+async def allocation_summary(round_id: int, _: CurrentUser = Depends(admin), db=Depends(session)):
+    """UC33: raport przydziału (jakość, popyt na przedmioty)."""
+    return await allocation.summary(db, round_id)
 
 
 # --- użytkownicy i oceny (UC15) ---------------------------------------------

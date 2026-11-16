@@ -1,24 +1,38 @@
-"""Tury zapisów (UC16, UC17, UC18)."""
+"""Tury zapisów (UC16, UC17, UC18, UC23); tryb tury: kolejka albo preferencje (UC34)."""
 from datetime import datetime
 
 from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.rounds import RoundInfo, covers, scheduled_transition
+from app.domain.rounds import RoundInfo, RoundMode, scheduled_transition, student_can_enroll
 from app.errors import Conflict, NotFound
-from app.models import EnrollmentRound, Program, RoundProgram, Section, User, WaitlistEntry
+from app.models import AllocationRun, EnrollmentRound, Program, RoundProgram, Section, User, WaitlistEntry
 from app.services import loaders
 from app.services.notifications import notify_many, payload
 
 
+DEFAULT_POINTS_BUDGET = 100
+
+
 async def create_round(session: AsyncSession, term_id: int, name: str, opens_at: datetime,
-                       closes_at: datetime, program_ids: list[int]) -> int:
+                       closes_at: datetime, program_ids: list[int], mode: RoundMode = RoundMode.QUEUE,
+                       points_budget: int | None = None) -> int:
+    """UC16/UC34: nowa tura. W trybie PREFERENCES pula punktów (domyślnie 100) na wagi przedmiotów."""
     if opens_at >= closes_at:
         raise Conflict("BAD_DATES", "Tura musi się kończyć po rozpoczęciu.")
+    if mode is RoundMode.QUEUE and points_budget is not None:
+        raise Conflict("BAD_BUDGET", "Pula punktów dotyczy tylko tury preferencyjnej.")
+    if mode is RoundMode.PREFERENCES:
+        points_budget = points_budget or DEFAULT_POINTS_BUDGET
     await _check_programs(session, program_ids)
-    rid = (await session.execute(insert(EnrollmentRound).values(
-        term_id=term_id, name=name, opens_at=opens_at, closes_at=closes_at)
-        .returning(EnrollmentRound.id))).scalar_one()
+    try:
+        async with session.begin_nested():
+            rid = (await session.execute(insert(EnrollmentRound).values(
+                term_id=term_id, name=name, opens_at=opens_at, closes_at=closes_at, mode=mode.value,
+                points_budget=points_budget).returning(EnrollmentRound.id))).scalar_one()
+    except IntegrityError as e:
+        raise Conflict("DUPLICATE", "Tura o tej nazwie już istnieje w semestrze albo semestr nie istnieje.") from e
     await _set_programs(session, rid, program_ids)
     return rid
 
@@ -40,8 +54,16 @@ async def update_round(session: AsyncSession, round_id: int, *, opens_at: dateti
 
 
 async def open_round(session: AsyncSession, round_id: int) -> None:
-    """UC16: ręczne otwarcie (także ponowne, np. po awarii)."""
+    """UC16: ręczne otwarcie (także ponowne, np. po awarii).
+
+    Tury preferencyjnej po przydziale końcowym nie da się otworzyć ponownie - nowe
+    preferencje nie zostałyby już nigdy uwzględnione (przydział jest jednorazowy).
+    """
     await _get(session, round_id, lock=True)
+    final = (await session.execute(select(AllocationRun.id).where(
+        AllocationRun.round_id == round_id, AllocationRun.kind == "FINAL"))).first()
+    if final is not None:
+        raise Conflict("ALREADY_ALLOCATED", "Przydział dla tej tury został już wykonany - utwórz nową turę.")
     await session.execute(update(EnrollmentRound).where(EnrollmentRound.id == round_id).values(status="OPEN"))
 
 
@@ -53,7 +75,7 @@ async def close_round(session: AsyncSession, round_id: int) -> int:
 
 
 async def expire_uncovered(session: AsyncSession, term_id: int) -> int:
-    """UC18: wpisy WAITING studentów, których kierunku nie obejmuje już żadna otwarta tura.
+    """UC18: wpisy WAITING studentów, których kierunku nie obejmuje już żadna otwarta tura kolejkowa.
 
     Bez tego wypis przez dziekanat po turze zapisałby kogoś z listy bez jego
     wiedzy. Worker woła to też okresowo, bo zapis, który zaczął się tuż przed
@@ -61,7 +83,8 @@ async def expire_uncovered(session: AsyncSession, term_id: int) -> int:
     """
     open_rounds = await loaders.term_rounds(session, term_id, only_open=True)
     programs = (await session.execute(select(Program.id))).scalars().all()
-    uncovered = [p for p in programs if not any(covers(r, p) for r in open_rounds)]
+    # tura preferencyjna nie podtrzymuje list oczekujących - w niej nikt nie awansuje z kolejki
+    uncovered = [p for p in programs if not student_can_enroll(open_rounds, p)]
     if not uncovered:
         return 0
     rows = (await session.execute(
@@ -83,7 +106,7 @@ async def apply_schedule(session: AsyncSession, now: datetime) -> list[tuple[int
         .with_for_update(skip_locked=True))).scalars().all()
     changes = []
     for r in rounds:
-        info = RoundInfo(r.id, r.status, r.opens_at, r.closes_at, frozenset())
+        info = RoundInfo(r.id, r.status, r.opens_at, r.closes_at, frozenset(), RoundMode(r.mode))
         new = scheduled_transition(info, now)
         if new == "OPEN":
             await open_round(session, r.id)

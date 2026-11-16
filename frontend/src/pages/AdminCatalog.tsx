@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { api, ApiError, DAYS, KINDS, meetingText, type CourseDetail, type CourseSummary, type User } from "../api";
+import { api, ApiError, DAYS, KINDS, meetingText, type CourseDetail, type CourseSummary, type MeetingT, type User } from "../api";
 import { useApp } from "../App";
 import { SeatBar, useLoad } from "../components";
 
@@ -64,6 +64,7 @@ function CourseAdmin({ courseId }: { courseId: number }) {
   const [rooms] = useLoad<RoomT[]>("/api/admin/rooms");
   const [lecturers] = useLoad<User[]>("/api/admin/users?role=LECTURER");
   const run = useRun();
+  const [editing, setEditing] = useState<number | null>(null);
   const [req, setReq] = useState("");
   const [ns, setNs] = useState({ code: "", kind: "LAB", capacity: 15, waitlist_limit: 50 });
   if (!d) return null;
@@ -102,8 +103,14 @@ function CourseAdmin({ courseId }: { courseId: number }) {
                 <td><b>{s.code}</b> {KINDS[s.kind]}<div className="muted">id {s.id}</div></td>
                 <td>
                   {s.meetings.map((m) => (
-                    <div key={m.id}>{meetingText(m)} <button className="danger" style={{ padding: "0 6px" }}
-                      onClick={() => run(() => api(`/api/admin/meetings/${m.id}`, { method: "DELETE" }), "Usunięto termin.", reload)}>×</button></div>
+                    <div key={m.id}>{meetingText(m)}{" "}
+                      <button className="secondary" style={{ padding: "0 6px" }} title="przenieś termin"
+                        onClick={() => setEditing(editing === m.id ? null : m.id)}>✎</button>{" "}
+                      <button className="danger" style={{ padding: "0 6px" }}
+                        onClick={() => run(() => api(`/api/admin/meetings/${m.id}`, { method: "DELETE" }), "Usunięto termin.", reload)}>×</button>
+                      {editing === m.id && <MeetingForm sectionId={s.id} rooms={rooms ?? []} meeting={m}
+                                                        onDone={() => { setEditing(null); reload(); }} />}
+                    </div>
                   ))}
                   <MeetingForm sectionId={s.id} rooms={rooms ?? []} onDone={reload} />
                 </td>
@@ -140,12 +147,17 @@ function CourseAdmin({ courseId }: { courseId: number }) {
   );
 }
 
-function MeetingForm({ sectionId, rooms, onDone }: { sectionId: number; rooms: RoomT[]; onDone: () => void }) {
+/** Nowy termin albo - z `meeting` - przeniesienie istniejącego (UC32: odmowa, gdy koliduje z planem zapisanego studenta). */
+function MeetingForm({ sectionId, rooms, onDone, meeting }: { sectionId: number; rooms: RoomT[]; onDone: () => void; meeting?: MeetingT }) {
   const run = useRun();
-  const [m, setM] = useState({ weekday: 1, start: "08:00", end: "09:30", parity: "ALL", room_id: "" });
+  const [m, setM] = useState(meeting
+    ? { weekday: meeting.weekday, start: meeting.start, end: meeting.end, parity: meeting.parity as string, room_id: meeting.room_id ? String(meeting.room_id) : "" }
+    : { weekday: 1, start: "08:00", end: "09:30", parity: "ALL", room_id: "" });
   return (
     <form className="inline" onSubmit={(e) => { e.preventDefault();
-      run(() => api(`/api/admin/sections/${sectionId}/meetings`, { body: { ...m, room_id: m.room_id ? Number(m.room_id) : null } }), "Dodano termin.", onDone); }}>
+      const body = { ...m, room_id: m.room_id ? Number(m.room_id) : null };
+      if (meeting) run(() => api(`/api/admin/meetings/${meeting.id}`, { method: "PUT", body }), "Przeniesiono termin.", onDone);
+      else run(() => api(`/api/admin/sections/${sectionId}/meetings`, { body }), "Dodano termin.", onDone); }}>
       <select value={m.weekday} onChange={(e) => setM({ ...m, weekday: Number(e.target.value) })}>{DAYS.slice(1).map((d, i) => <option key={d} value={i + 1}>{d}</option>)}</select>
       <input type="time" value={m.start} onChange={(e) => setM({ ...m, start: e.target.value })} />
       <input type="time" value={m.end} onChange={(e) => setM({ ...m, end: e.target.value })} />
@@ -153,7 +165,7 @@ function MeetingForm({ sectionId, rooms, onDone }: { sectionId: number; rooms: R
       <select value={m.room_id} onChange={(e) => setM({ ...m, room_id: e.target.value })}>
         <option value="">bez sali</option>{rooms.map((r) => <option key={r.id} value={r.id}>{r.building} {r.number} ({r.seats})</option>)}
       </select>
-      <button className="secondary">+</button>
+      <button className="secondary">{meeting ? "Przenieś" : "+"}</button>
     </form>
   );
 }

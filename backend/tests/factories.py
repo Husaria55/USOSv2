@@ -33,10 +33,14 @@ async def term(code: str = "2026Z") -> int:
     return await _ins(Term, code=code, starts_on=date(2026, 10, 1), ends_on=date(2027, 2, 15))
 
 
-async def round_(term_id: int, programs: list[int] = (), status: str = "OPEN", name: str | None = None) -> int:
+async def round_(term_id: int, programs: list[int] = (), status: str = "OPEN", name: str | None = None,
+                 mode: str = "QUEUE", budget: int | None = None) -> int:
     now = datetime.now(timezone.utc)
+    if mode == "PREFERENCES":
+        budget = budget or 100
     rid = await _ins(EnrollmentRound, term_id=term_id, name=name or f"tura {_next()}", status=status,
-                     opens_at=now - timedelta(hours=1), closes_at=now + timedelta(hours=1))
+                     opens_at=now - timedelta(hours=1), closes_at=now + timedelta(hours=1),
+                     mode=mode, points_budget=budget)
     async with Session() as s, s.begin():
         for p in programs:
             await s.execute(insert(RoundProgram).values(round_id=rid, program_id=p))

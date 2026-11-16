@@ -2,7 +2,9 @@
 
 - otwiera i zamyka tury według harmonogramu (UC17) i wygasza listy (UC18),
 - wysyła e-maile z outboxa (poza transakcjami zapisu, więc wolny SMTP ich nie blokuje),
-- okresowo sprawdza niezmienniki.
+- okresowo sprawdza niezmienniki,
+- w turach preferencyjnych: co kilka minut symulacja przydziału (UC31), a po zamknięciu
+  tury przydział końcowy (UC30) - jednorazowo, także po awarii workera w trakcie.
 
 Można uruchomić kilka instancji: tury i outbox są brane z SKIP LOCKED.
 """
@@ -18,7 +20,8 @@ from sqlalchemy import func, select, update
 from app.config import settings
 from app.db import Session, run_transaction
 from app.models import Notification, Section, User, WaitlistEntry
-from app.services import audit, rounds
+from app.errors import Conflict
+from app.services import allocation, audit, rounds
 
 log = logging.getLogger("worker")
 
@@ -27,6 +30,9 @@ SUBJECTS = {
     "SKIPPED": "Pominięto Cię na liście oczekujących",
     "CANCELLED": "Anulowano wpis na liście oczekujących",
     "EXPIRED": "Wpis na liście oczekujących wygasł",
+    "SCHEDULE_CHANGED": "Zmiana terminu zajęć",
+    "ALLOCATED": "Wynik przydziału według preferencji",
+    "NOT_ALLOCATED": "Wynik przydziału według preferencji",
 }
 MAX_ATTEMPTS = 5
 AUDIT_EVERY_S = 60
@@ -82,6 +88,36 @@ async def send_outbox(batch: int = 100) -> int:
         return len(sent)
 
 
+async def allocate_closed_rounds() -> None:
+    """UC30: przydział końcowy w zamkniętych turach preferencyjnych.
+
+    Każda tura w osobnej transakcji; ALREADY_ALLOCATED = zrobiła to inna instancja workera
+    albo dziekanat ręcznie (unikalny indeks allocation_one_final), więc to nie błąd.
+    """
+    async with Session() as s:
+        pending = await allocation.rounds_to_allocate(s)
+    for round_id in pending:
+        try:
+            r = await run_transaction(lambda s: allocation.run_allocation(s, round_id, allocation.FINAL))
+        except Conflict as e:
+            if e.code != "ALREADY_ALLOCATED":
+                raise
+            continue
+        log.info("tura %s: przydział końcowy %d/%d zgłoszeń, użyteczność %.1f/%.1f (%.2f s)",
+                 round_id, r.assigned, r.requests, r.total_utility, r.upper_bound, r.seconds)
+
+
+async def preview_open_rounds() -> None:
+    """UC31: symulacja przydziału w otwartych turach preferencyjnych."""
+    async with Session() as s:
+        open_rounds = await allocation.rounds_to_preview(s)
+    for round_id in open_rounds:
+        try:
+            await run_transaction(lambda s: allocation.run_allocation(s, round_id, allocation.PREVIEW))
+        except Conflict:
+            continue                                    # np. przydział końcowy w międzyczasie
+
+
 async def run_audit() -> None:
     async with Session() as s:
         for v in await audit.violations(s):
@@ -91,14 +127,20 @@ async def run_audit() -> None:
 async def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     log.info("worker start")
-    last_audit = 0.0
+    last_audit = last_preview = 0.0
     while True:
         started = time.monotonic()
-        for step in (schedule_rounds, expire_stragglers, send_outbox):
+        for step in (schedule_rounds, expire_stragglers, allocate_closed_rounds, send_outbox):
             try:
                 await step()
             except Exception:
                 log.exception("błąd w kroku %s", step.__name__)
+        if started - last_preview >= settings.allocation_preview_interval_s:
+            last_preview = started
+            try:
+                await preview_open_rounds()
+            except Exception:
+                log.exception("błąd symulacji przydziału")
         if started - last_audit >= AUDIT_EVERY_S:
             last_audit = started
             try:

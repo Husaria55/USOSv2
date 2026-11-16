@@ -52,6 +52,8 @@ class TargetSection:
     kind: str
     slots: tuple[Slot, ...]
     prerequisites: Mapping[int, str] = field(default_factory=dict)  # id kursu -> kod
+    # wersja harmonogramu grupy, z której pochodzą `slots` (section.schedule_version)
+    schedule_version: int = 0
 
     @property
     def label(self) -> str:

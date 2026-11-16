@@ -1,4 +1,4 @@
-"""Mapowanie tabel (struktura w migrations/versions/0001_initial.sql).
+"""Mapowanie tabel (struktura w migrations/versions/0001_initial.sql i 0002_preferences.sql).
 
 Ograniczenia (CHECK, UNIQUE, indeksy częściowe) są zdefiniowane w migracji,
 tu tylko kolumny potrzebne do zapytań.
@@ -6,7 +6,7 @@ tu tylko kolumny potrzebne do zapytań.
 from datetime import date, datetime, time
 from decimal import Decimal
 
-from sqlalchemy import BigInteger, Computed, DateTime, ForeignKey, SmallInteger, String, Text
+from sqlalchemy import BigInteger, Computed, DateTime, ForeignKey, Integer, Numeric, SmallInteger, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -68,6 +68,8 @@ class EnrollmentRound(Base):
     opens_at: Mapped[datetime]
     closes_at: Mapped[datetime]
     status: Mapped[str] = mapped_column(String(16), server_default="PLANNED")
+    mode: Mapped[str] = mapped_column(String(16), server_default="QUEUE")
+    points_budget: Mapped[int | None] = mapped_column(SmallInteger)
 
 
 class RoundProgram(Base):
@@ -94,6 +96,7 @@ class Section(Base):
     capacity: Mapped[int] = mapped_column(SmallInteger)
     enrolled_count: Mapped[int] = mapped_column(SmallInteger, server_default="0")
     waitlist_limit: Mapped[int] = mapped_column(SmallInteger, server_default="50")
+    schedule_version: Mapped[int] = mapped_column(Integer, server_default="0")
 
 
 class SectionLecturer(Base):
@@ -157,3 +160,54 @@ class Notification(Base):
     sent_at: Mapped[datetime | None]
     read_at: Mapped[datetime | None]
     attempts: Mapped[int] = mapped_column(SmallInteger, server_default="0")
+
+
+class CoursePreference(Base):
+    __tablename__ = "course_preference"
+    round_id: Mapped[int] = mapped_column(ForeignKey("enrollment_round.id"), primary_key=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("app_user.id"), primary_key=True)
+    course_id: Mapped[int] = mapped_column(ForeignKey("course.id"), primary_key=True)
+    weight: Mapped[int] = mapped_column(SmallInteger)
+    updated_at: Mapped[datetime] = mapped_column(server_default="now()")
+
+
+class SectionPreference(Base):
+    __tablename__ = "section_preference"
+    round_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    student_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    section_id: Mapped[int] = mapped_column(ForeignKey("section.id"), primary_key=True)
+    course_id: Mapped[int] = mapped_column(BigInteger)
+    rank: Mapped[int] = mapped_column(SmallInteger)
+
+
+class AllocationRun(Base):
+    __tablename__ = "allocation_run"
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    round_id: Mapped[int] = mapped_column(ForeignKey("enrollment_round.id"))
+    kind: Mapped[str] = mapped_column(String(8))
+    seed: Mapped[int] = mapped_column(BigInteger)
+    created_at: Mapped[datetime] = mapped_column(server_default="now()")
+    students: Mapped[int] = mapped_column(Integer)
+    requests: Mapped[int] = mapped_column(Integer)
+    assigned: Mapped[int] = mapped_column(Integer)
+    total_utility: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    upper_bound: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+
+
+class AllocationResult(Base):
+    __tablename__ = "allocation_result"
+    run_id: Mapped[int] = mapped_column(ForeignKey("allocation_run.id"), primary_key=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("app_user.id"), primary_key=True)
+    course_id: Mapped[int] = mapped_column(ForeignKey("course.id"), primary_key=True)
+    weight: Mapped[int] = mapped_column(SmallInteger)
+    status: Mapped[str] = mapped_column(String(12))
+    utility: Mapped[Decimal] = mapped_column(Numeric(8, 2))
+    reason: Mapped[str | None] = mapped_column(String(255))
+
+
+class AllocationAssignment(Base):
+    __tablename__ = "allocation_assignment"
+    run_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    student_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    section_id: Mapped[int] = mapped_column(ForeignKey("section.id"), primary_key=True)
+    course_id: Mapped[int] = mapped_column(BigInteger)

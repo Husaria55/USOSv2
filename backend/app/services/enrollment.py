@@ -7,6 +7,11 @@ Kolejność blokad: student -> grupa. Wyjątek to awans z listy (grupa ->
 awansowany student), dlatego tam student jest blokowany z NOWAIT: zajęty
 wiersz kończy się błędem 55P03 i ponowieniem całej transakcji, a nie
 zakleszczeniem. Awansowany nie traci przez to kolejki.
+
+Terminy grupy (do wykrywania kolizji) pochodzą z cache procesu (loaders.load_target).
+Pod blokadą grupy porównujemy ich wersję z section.schedule_version - jeśli dziekanat
+zmienił harmonogram w międzyczasie, sprawdzamy kolizje ponownie na aktualnych terminach
+(_current_target). Dzięki temu zmiana terminu w trakcie tury nie przepuści kolizji.
 """
 from dataclasses import dataclass, field
 
@@ -38,11 +43,7 @@ class PromotionEvent:
     reason: str | None = None
 
 
-def _source(mode: Mode) -> str:
-    return mode.value
-
-
-async def _cancel_same_kind(session: AsyncSession, student_id: int, waiting: list[WaitingEntry],
+async def cancel_same_kind(session: AsyncSession, student_id: int, waiting: list[WaitingEntry],
                             target: TargetSection, keep_entry: int | None = None) -> list[str]:
     """Po zapisie: wpisy WAITING studenta w grupach tego przedmiotu i typu -> CANCELLED."""
     ids = [i for i in same_kind_waiting(waiting, target.course_id, target.kind) if i != keep_entry]
@@ -56,17 +57,25 @@ async def _cancel_same_kind(session: AsyncSession, student_id: int, waiting: lis
     return list(labels.values())
 
 
-async def _insert_enrollment(session: AsyncSession, student_id: int, section_id: int, mode: Mode,
+async def insert_enrollment(session: AsyncSession, student_id: int, section_id: int, mode: Mode | str,
                              actor_id: int | None) -> int:
     return await (await pg(session)).fetchval(
         "INSERT INTO enrollment (student_id, section_id, status, source, created_by) "
-        "VALUES ($1, $2, 'ENROLLED', $3, $4) RETURNING id", student_id, section_id, _source(mode), actor_id)
+        "VALUES ($1, $2, 'ENROLLED', $3, $4) RETURNING id", student_id, section_id, str(mode), actor_id)
 
 
-async def _add_to_count(session: AsyncSession, section_id: int, delta: int, capacity_delta: int = 0) -> None:
+async def add_to_count(session: AsyncSession, section_id: int, delta: int, capacity_delta: int = 0) -> None:
     await (await pg(session)).execute(
         "UPDATE section SET enrolled_count = enrolled_count + $2, capacity = capacity + $3 WHERE id = $1",
         section_id, delta, capacity_delta)
+
+
+async def _current_target(session: AsyncSession, section: LockedSection, target: TargetSection) -> TargetSection:
+    """Dane grupy zgodne z harmonogramem pod blokadą grupy (świeże, gdy wersja się zmieniła)."""
+    if section.schedule_version == target.schedule_version:
+        return target
+    fresh, _ = await loaders.load_target(session, section.id, fresh=True)
+    return fresh
 
 
 async def enroll(session: AsyncSession, student_id: int, section_id: int, *,
@@ -83,6 +92,13 @@ async def enroll(session: AsyncSession, student_id: int, section_id: int, *,
         raise Conflict.from_refusal(refusals[0])
 
     section = await loaders.lock_section(session, section_id)          # 2. blokada grupy
+    current = await _current_target(session, section, target)
+    if current is not target:
+        # harmonogram grupy zmienił się po sprawdzeniu reguł - sprawdzamy jeszcze raz
+        target = current
+        refusals = check_student(state, target, mode)
+        if refusals:
+            raise Conflict.from_refusal(refusals[0])
     full = section.enrolled_count >= section.capacity
     seat = SeatState(
         capacity=section.capacity, enrolled_count=section.enrolled_count,
@@ -99,9 +115,9 @@ async def enroll(session: AsyncSession, student_id: int, section_id: int, *,
             "INSERT INTO waitlist_entry (student_id, section_id) VALUES ($1, $2)", student_id, section_id)
         return EnrollResult("WAITLISTED", section_id, position=seat.waiting_count + 1)
 
-    await _add_to_count(session, section_id, 1, 1 if outcome is Outcome.ENROLL_OVER_CAPACITY else 0)
-    await _insert_enrollment(session, student_id, section_id, mode, actor_id)
-    cancelled = await _cancel_same_kind(session, student_id, waiting, target)
+    await add_to_count(session, section_id, 1, 1 if outcome is Outcome.ENROLL_OVER_CAPACITY else 0)
+    await insert_enrollment(session, student_id, section_id, mode, actor_id)
+    cancelled = await cancel_same_kind(session, student_id, waiting, target)
     if mode is Mode.ADMIN:
         await notify(session, student_id, "ADMIN_ENROLLED", target.label)
     return EnrollResult("ENROLLED", section_id, cancelled_waitlists=cancelled)
@@ -123,11 +139,11 @@ async def drop(session: AsyncSession, student_id: int, section_id: int, *,
         student_id, section_id, actor_id)
     if dropped is None:
         raise Conflict("NOT_ENROLLED", f"Nie jesteś zapisany do grupy {target.label}.")
-    await _add_to_count(session, section_id, -1)
+    await add_to_count(session, section_id, -1)
     section.enrolled_count -= 1
     if mode is Mode.ADMIN:
         await notify(session, student_id, "ADMIN_DROPPED", target.label)
-    return await promote(session, section, target, term_id)
+    return await promote(session, section, await _current_target(session, section, target), term_id)
 
 
 async def leave_waitlist(session: AsyncSession, student_id: int, section_id: int) -> None:
@@ -157,15 +173,16 @@ async def change_limits(session: AsyncSession, section_id: int, *, capacity: int
         section.waitlist_limit = waitlist_limit
     await (await pg(session)).execute("UPDATE section SET capacity = $2, waitlist_limit = $3 WHERE id = $1",
                                       section_id, section.capacity, section.waitlist_limit)
-    return await promote(session, section, target, term_id)
+    return await promote(session, section, await _current_target(session, section, target), term_id)
 
 
 async def promote(session: AsyncSession, section: LockedSection, target: TargetSection,
                   term_id: int) -> list[PromotionEvent]:
     """UC9: dopóki są wolne miejsca, zapisuje kolejnych oczekujących.
 
-    Wymaga blokady grupy. Każdego kandydata sprawdza ponownie (od dopisania do
-    listy jego plan mógł się zmienić); niespełniający warunków dostaje SKIPPED.
+    Wymaga blokady grupy i `target` zgodnego z jej aktualnym harmonogramem
+    (_current_target). Każdego kandydata sprawdza ponownie (od dopisania do listy
+    jego plan albo termin grupy mogły się zmienić); niespełniający warunków dostaje SKIPPED.
     """
     events: list[PromotionEvent] = []
     while section.enrolled_count < section.capacity:
@@ -188,13 +205,13 @@ async def promote(session: AsyncSession, section: LockedSection, target: TargetS
             events.append(PromotionEvent(candidate_id, "SKIPPED", reason))
             continue
 
-        enrollment_id = await _insert_enrollment(session, candidate_id, section.id, Mode.WAITLIST, None)
+        enrollment_id = await insert_enrollment(session, candidate_id, section.id, Mode.WAITLIST, None)
         await (await pg(session)).execute(
             "UPDATE waitlist_entry SET status = 'PROMOTED', resolved_at = now(), enrollment_id = $2 WHERE id = $1",
             entry_id, enrollment_id)
-        await _add_to_count(session, section.id, 1)
+        await add_to_count(session, section.id, 1)
         section.enrolled_count += 1
-        await _cancel_same_kind(session, candidate_id, waiting, target, keep_entry=entry_id)
+        await cancel_same_kind(session, candidate_id, waiting, target, keep_entry=entry_id)
         await notify(session, candidate_id, "PROMOTED", target.label)
         events.append(PromotionEvent(candidate_id, "PROMOTED"))
     return events

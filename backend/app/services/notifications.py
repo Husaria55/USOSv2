@@ -12,6 +12,10 @@ MESSAGES = {
     "EXPIRED": "Tura zapisów się zakończyła - wpis na liście oczekujących grupy {label} wygasł.",
     "ADMIN_ENROLLED": "Dziekanat zapisał Cię do grupy {label}.",
     "ADMIN_DROPPED": "Dziekanat wypisał Cię z grupy {label}.",
+    "SCHEDULE_CHANGED": "Zmienił się harmonogram grupy {label} - sprawdź nowe terminy w planie.",
+    "ALLOCATED": "Przydział według preferencji ({label}): zapisano Cię do {groups}.",
+    "NOT_ALLOCATED": "Przydział według preferencji ({label}): nie przydzielono {courses}. "
+                     "Szczegóły i powody w zakładce Preferencje.",
 }
 
 

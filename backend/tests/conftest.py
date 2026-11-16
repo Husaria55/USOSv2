@@ -19,7 +19,8 @@ from sqlalchemy import text
 
 from app.db import Session, engine
 
-TABLES = ("notification, waitlist_entry, enrollment, completed_course, meeting, section_lecturer, "
+TABLES = ("allocation_assignment, allocation_result, allocation_run, section_preference, course_preference, "
+          "notification, waitlist_entry, enrollment, completed_course, meeting, section_lecturer, "
           "section, round_program, enrollment_round, room, term, course_prerequisite, course, "
           "app_user, program")
 

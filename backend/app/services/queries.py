@@ -170,7 +170,10 @@ async def student_waitlist(session: AsyncSession, student_id: int, term_id: int)
 async def student_rounds(session: AsyncSession, student_id: int, term_id: int) -> list[dict]:
     student = await _student(session, student_id)
     rounds = await loaders.term_rounds(session, term_id)
-    return [{"id": r.id, "status": r.status, "opens_at": r.opens_at, "closes_at": r.closes_at}
+    names = dict((await session.execute(select(EnrollmentRound.id, EnrollmentRound.name)
+                                        .where(EnrollmentRound.term_id == term_id))).all())
+    return [{"id": r.id, "name": names[r.id], "status": r.status, "opens_at": r.opens_at, "closes_at": r.closes_at,
+             "mode": r.mode.value, "points_budget": r.points_budget}
             for r in sorted(rounds, key=lambda r: r.opens_at) if covers(r, student.program_id)]
 
 
@@ -179,7 +182,8 @@ async def all_rounds(session: AsyncSession, term_id: int) -> list[dict]:
     names = dict((await session.execute(select(EnrollmentRound.id, EnrollmentRound.name)
                                         .where(EnrollmentRound.term_id == term_id))).all())
     return [{"id": r.id, "name": names[r.id], "status": r.status, "opens_at": r.opens_at,
-             "closes_at": r.closes_at, "program_ids": sorted(r.program_ids)}
+             "closes_at": r.closes_at, "program_ids": sorted(r.program_ids), "mode": r.mode.value,
+             "points_budget": r.points_budget}
             for r in sorted(rounds, key=lambda r: r.opens_at)]
 
 

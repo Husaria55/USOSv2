@@ -1,0 +1,91 @@
+@startuml przypadki_uzycia_administracja
+!pragma layout smetana
+left to right direction
+title Przypadki użycia (2/3) – dziekanat, prowadzący, zegar (etap 5)
+skinparam shadowing false
+
+actor "Administrator\n(dziekanat)" as A
+actor "Prowadzący" as P
+actor "Zegar systemowy\n(worker)" as Z
+
+rectangle "System zapisów" {
+  usecase "UC0: Uwierzytelnij się" as UC0
+  usecase "UC1: Przeglądaj katalog\nkursów i grup" as UC1
+  usecase "UC21: Przeglądaj\npowiadomienia" as UC21
+  usecase "UC10: Przeglądaj listy studentów grup\n(prowadzący – tylko swoich; eksport CSV)" as UC10
+  usecase "UC11: Zarządzaj kursami\ni wymaganiami wstępnymi" as UC11
+  usecase "UC12: Zarządzaj grupami,\nsalami i harmonogramem" as UC12
+  usecase UC13 as "UC13: Zmień limit miejsc w grupie
+--
+extension points:
+wolne miejsce po zmianie"
+  usecase UC14 as "UC14: Zapisz / wypisz studenta
+(decyzja dziekanatu)
+--
+extension points:
+zwolnione miejsce"
+  usecase "UC15: Importuj zaliczone\nprzedmioty (CSV)" as UC15
+  usecase "UC16: Otwórz / zamknij /\nprzedłuż turę ręcznie" as UC16
+  usecase "UC17: Otwórz / zamknij turę\no zadanej godzinie" as UC17
+  usecase "UC18: Wygaś listy oczekujących\nkierunków bez otwartej tury" as UC18
+  usecase "UC23: Zaplanuj tury\nkierunków (rozłożone w czasie)" as UC23
+  usecase "UC24: Zarządzaj kontami,\nkierunkami, semestrami" as UC24
+  usecase "UC25: Sprawdź niezmienniki\n(audyt)" as UC25
+  usecase "UC26: Wyślij powiadomienia\ne-mail (outbox)" as UC26
+  usecase "UC4: Wykryj kolizję\nw planie" as UC4
+  usecase "UC27: Wykryj cykl\nwymagań" as UC27
+  usecase "UC9: Awansuj pierwszego\nz listy oczekujących" as UC9
+  usecase "UC32: Zmień termin zajęć\nw trakcie tury (bez kolizji\nu zapisanych studentów)" as UC32 #E7F0FF
+  usecase "UC34: Utwórz turę\npreferencyjną (pula punktów)" as UC34 #E7F0FF
+}
+
+P -- UC0
+A -- UC0
+P -- UC1
+P -- UC21
+P -- UC10
+A -- UC1
+A -- UC21
+A -- UC10
+A -- UC11
+A -- UC12
+A -- UC13
+A -- UC14
+A -- UC15
+A -- UC16
+A -- UC23
+A -- UC24
+A -- UC25
+A -- UC32
+A -- UC34
+Z -- UC17
+Z -- UC25
+Z -- UC26
+
+
+UC11 ..> UC27 : <<include>>
+UC12 ..> UC4 : <<include>>\n(sala, prowadzący)
+UC32 ..> UC12 : <<extend>>
+UC32 ..> UC4 : <<include>>\n(plany zapisanych)
+UC14 ..> UC4 : <<include>>
+UC9 ..> UC13 : <<extend>>
+UC9 ..> UC14 : <<extend>>
+UC16 ..> UC18 : <<include>>\n(przy zamknięciu)
+UC17 ..> UC18 : <<include>>\n(przy zamknięciu)
+
+note right of UC0
+  Przypadki prowadzącego i dziekanatu
+  wymagają zalogowania i właściwej roli;
+  zegar (worker) działa bez logowania.
+end note
+note bottom of UC32
+  Nowe w etapie 5 (niebieskie).
+  Przydział wg preferencji (UC30, UC31,
+  UC33) - diagram 3/3.
+end note
+note bottom of UC23
+  Np. kolejny kierunek co 30 min:
+  w szczycie zapisuje się ~1000 osób
+  zamiast 20 000.
+end note
+@enduml

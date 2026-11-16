@@ -21,9 +21,11 @@ export function RoundBanner() {
   const { term, user } = useApp();
   const [rounds] = useLoad<Round[]>(term ? `/api/me/terms/${term.id}/rounds` : null);
   if (!rounds) return null;
-  const open = rounds.find((r) => r.status === "OPEN");
+  const open = rounds.find((r) => r.status === "OPEN" && r.mode === "QUEUE");
+  const prefs = rounds.find((r) => r.status === "OPEN" && r.mode === "PREFERENCES");
   const next = rounds.find((r) => r.status === "PLANNED");
   const who = `Zalogowano: ${user.full_name} (${user.index_no}), sem. ${user.semester}.`;
+  if (prefs && !open) return <div className="banner">Trwa <b>tura preferencyjna</b> (do <b>{fmtDate(prefs.closes_at)}</b>): zamiast zapisywać się do grup, zgłoś preferencje w zakładce <b>Preferencje</b> – miejsca zostaną przydzielone po zamknięciu tury. {who}</div>;
   if (open) return <div className="banner">Tura zapisów dla Twojego kierunku jest <b>otwarta</b> do <b>{fmtDate(open.closes_at)}</b>. {who}</div>;
   if (next) return <div className="banner warn">Zapisy dla Twojego kierunku otworzą się <b>{fmtDate(next.opens_at)}</b> (do {fmtDate(next.closes_at)}). Katalog i plan możesz przeglądać już teraz. {who}</div>;
   return <div className="banner warn">W semestrze {term?.code} nie ma otwartej tury zapisów dla Twojego kierunku. {who}</div>;

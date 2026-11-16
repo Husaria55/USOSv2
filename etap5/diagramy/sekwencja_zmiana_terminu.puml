@@ -1,0 +1,59 @@
+@startuml sekwencja_zmiana_terminu
+title UC32 – zmiana terminu w trakcie tury (PUT /api/admin/meetings/{id}) i równoległy zapis
+skinparam shadowing false
+skinparam sequenceMessageAlign left
+autonumber
+
+actor Dziekanat
+participant "CatalogService\nupdate_meeting()" as cat
+participant "domain.schedule" as dom
+database "PostgreSQL" as db
+participant "EnrollmentService\nenroll() (inny proces API)" as enr
+actor Student
+
+Dziekanat -> cat : run_transaction(update_meeting(meeting_id, weekday, start, end, parity, room_id))
+cat -> db : SELECT section_id, room_id FROM meeting
+break brak terminu
+  cat --> Dziekanat : 404 MEETING_NOT_FOUND
+end
+cat -> db : pg_advisory_xact_lock(prowadzący…, stara sala, nowa sala) – posortowane
+cat -> db : SELECT ... FROM section WHERE id=$1 FOR UPDATE
+note right of db : blokada grupy – tej samej,\nktórą bierze zapis i awans
+cat -> dom : sala: pojemność, conflicting_sections(plan sali bez tego terminu)
+cat -> dom : prowadzący: conflicting_sections(plan prowadzących)
+break kolizja sali / prowadzącego / sala za mała
+  cat --> Dziekanat : 409 ROOM_BUSY | LECTURER_BUSY | ROOM_TOO_SMALL
+end
+cat -> db : zapisani do grupy (ENROLLED)
+cat -> db : SELECT ... FROM app_user WHERE id = ANY($1) ORDER BY id FOR UPDATE NOWAIT
+note right of db : odwrotna kolejność niż zapis (grupa → student),\nwięc NOWAIT: zajęty student = 55P03 →\nrun_transaction ponawia całość (jak awans z listy)
+cat -> db : plany zapisanych w semestrze (loaders.plans)
+cat -> dom : conflicting_sections(plan bez tej grupy, nowe terminy grupy)
+break kolizja u choć jednego zapisanego
+  cat --> Dziekanat : 409 STUDENT_CONFLICT {details: ["400123: BD L05", ...]}\nnic się nie zmienia
+end
+cat -> db : UPDATE meeting SET weekday, start_time, end_time, week_parity, room_id
+cat -> db : UPDATE section SET schedule_version = schedule_version + 1
+cat -> db : INSERT notification (SCHEDULE_CHANGED) – zapisani i oczekujący
+cat -> db : COMMIT
+note over cat : API: catalog_cache.clear(), loaders.forget_targets()\n(tylko ten proces; inne mają cache do 10 s)
+
+== Równolegle: zapis w innym procesie API ze starym terminem w cache ==
+Student -> enr : POST /api/me/enrollments {section_id}
+enr -> db : lock_student (FOR UPDATE)
+enr -> enr : load_target(section) – z cache: STARE terminy, schedule_version = v
+enr -> dom : check_student(plan, stare terminy) → brak kolizji
+enr -> db : lock_section (FOR UPDATE) → schedule_version = v + 1
+alt wersja się zmieniła (zmiana dziekanatu zatwierdzona w międzyczasie)
+  enr -> db : load_target(section, fresh=True) – aktualne terminy
+  enr -> dom : check_student(plan, NOWE terminy)
+  enr --> Student : 409 CONFLICT „Kolizja w planie z: …”
+else ta sama wersja
+  enr -> db : zapis jak zwykle (UC2)
+end
+note over enr, db
+  Jeśli zapis był pierwszy: student jest już zapisany, gdy dziekanat bierze blokadę grupy,
+  więc jego plan jest sprawdzany w kroku 11–13 → STUDENT_CONFLICT dla dziekanatu.
+  Test: tests/test_collisions.py::test_k16 (oba przeplecenia, 12 powtórzeń).
+end note
+@enduml

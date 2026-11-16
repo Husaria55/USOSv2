@@ -36,7 +36,27 @@ export interface WaitItem {
   kind: string; status: string; created_at: string; resolved_at: string | null; skip_reason: string | null;
   position: number | null;
 }
-export interface Round { id: number; name?: string; status: string; opens_at: string; closes_at: string; program_ids?: number[] }
+export type RoundMode = "QUEUE" | "PREFERENCES";
+export interface Round {
+  id: number; name?: string; status: string; opens_at: string; closes_at: string; program_ids?: number[];
+  mode: RoundMode; points_budget: number | null;
+}
+export interface PreferenceCourse {
+  course_id: number; code: string; name: string; weight: number;
+  sections: { section_id: number; code: string; kind: string; rank: number }[];
+}
+export interface Preferences { round_id: number; status: string; mode: RoundMode; budget: number | null; used: number; courses: PreferenceCourse[] }
+export interface PreferenceWarning { course_id: number; code: string; message: string }
+export interface AllocationView {
+  run: { id: number; kind: "PREVIEW" | "FINAL"; created_at: string } | null;
+  results: { course_id: number; code: string; name: string; weight: number; status: "ASSIGNED" | "UNASSIGNED";
+             utility: number; reason: string | null; sections: string[] }[];
+}
+export interface AllocationSummary {
+  run: { id: number; kind: string; created_at: string; seed: number; students: number; requests: number; assigned: number;
+         total_utility: number; upper_bound: number; quality: number | null } | null;
+  courses: { course_id: number; code: string; requests: number; weight_sum: number; free_seats: number; assigned: number }[];
+}
 export interface NotificationT { id: number; type: string; message: string; created_at: string; read: boolean }
 
 export class ApiError extends Error {

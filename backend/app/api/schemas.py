@@ -77,6 +77,10 @@ class NewMeeting(BaseModel):
     room_id: int | None = None
 
 
+class MeetingUpdate(NewMeeting):
+    """Nowy termin w miejsce istniejącego (UC32) - wszystkie pola jak przy dodawaniu."""
+
+
 class LecturerRef(BaseModel):
     lecturer_id: int
 
@@ -87,6 +91,8 @@ class NewRound(BaseModel):
     opens_at: datetime
     closes_at: datetime
     program_ids: list[int] = []
+    mode: Literal["QUEUE", "PREFERENCES"] = "QUEUE"
+    points_budget: int | None = Field(default=None, ge=1, le=1000)
 
 
 class RoundUpdate(BaseModel):
@@ -109,3 +115,17 @@ class NewUser(BaseModel):
 
 class GradesImport(BaseModel):
     csv: str
+
+
+class CoursePreferenceIn(BaseModel):
+    course_id: int
+    weight: int = Field(ge=1, le=1000)
+    section_ids: list[int] = Field(min_length=1, max_length=30, description="Akceptowane grupy w kolejności")
+
+
+class PreferencesIn(BaseModel):
+    courses: list[CoursePreferenceIn] = Field(default=[], max_length=20)
+
+
+class AllocationIn(BaseModel):
+    seed: int | None = Field(default=None, ge=0, le=2**62, description="Ziarno losowania (odtworzenie przebiegu)")

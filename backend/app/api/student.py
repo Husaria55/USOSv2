@@ -5,10 +5,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, update
 
 from app.api.deps import CurrentUser, catalog_cache, current_user, read_gate, session, student, write_slot
-from app.api.schemas import SectionRef
+from app.api.schemas import PreferencesIn, SectionRef
 from app.db import run_transaction
+from app.domain.allocation import PreferenceInput
 from app.models import Notification, User
-from app.services import enrollment, queries
+from app.services import allocation, enrollment, preferences, queries
 
 router = APIRouter(prefix="/api")
 
@@ -86,6 +87,27 @@ async def leave_waitlist(section_id: int, user: CurrentUser = Depends(student)):
     async with write_slot(user.id):
         await run_transaction(lambda s: enrollment.leave_waitlist(s, user.id, section_id))
     return {"status": "CANCELLED"}
+
+
+@router.get("/me/rounds/{round_id}/preferences")
+async def get_preferences(round_id: int, user: CurrentUser = Depends(student), db=Depends(session)):
+    """UC28: moje zgłoszenie w turze preferencyjnej."""
+    return await preferences.get_preferences(db, user.id, round_id)
+
+
+@router.put("/me/rounds/{round_id}/preferences")
+async def save_preferences(round_id: int, body: PreferencesIn, user: CurrentUser = Depends(student)):
+    """UC28: zastąpienie zgłoszenia (wagi przedmiotów + grupy w kolejności). Można wielokrotnie w trakcie tury."""
+    items = [PreferenceInput(c.course_id, c.weight, tuple(c.section_ids)) for c in body.courses]
+    async with write_slot(user.id):
+        result = await run_transaction(lambda s: preferences.save_preferences(s, user.id, round_id, items))
+    return asdict(result)
+
+
+@router.get("/me/rounds/{round_id}/allocation")
+async def my_allocation(round_id: int, user: CurrentUser = Depends(student), db=Depends(session)):
+    """UC29: przewidywany (symulacja) albo końcowy przydział z powodami odmów."""
+    return await allocation.student_view(db, user.id, round_id)
 
 
 @router.get("/me/notifications")

@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     smtp_port: int = 1025
     smtp_from: str = "zapisy@usos.local"
     worker_interval_s: float = 5.0
+    # Co ile worker przelicza symulację przydziału w otwartych turach preferencyjnych (UC31).
+    allocation_preview_interval_s: float = 300.0
 
 
 settings = Settings()

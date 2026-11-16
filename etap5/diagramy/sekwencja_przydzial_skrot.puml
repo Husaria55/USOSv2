@@ -1,0 +1,30 @@
+@startuml sekwencja_przydzial_skrot
+title UC30 – przydział końcowy po zamknięciu tury (skrót)
+skinparam shadowing false
+skinparam defaultFontSize 15
+skinparam sequenceMessageAlign left
+autonumber
+
+participant "Worker" as w
+participant "AllocationService" as svc
+participant "domain.allocation" as dom
+database "PostgreSQL" as db
+
+w -> db : tura → CLOSED (od teraz preferencje: ROUND_CLOSED)
+w -> svc : run_allocation(tura, FINAL)
+svc -> db : blokady: tura → studenci → grupy (FOR UPDATE)
+break jest już FINAL (inny worker / dziekanat)
+  svc --> w : ALREADY_ALLOCATED – pomiń
+end
+svc -> db : zgłoszenia, aktualne terminy, wolne miejsca, plany, zaliczenia
+svc -> dom : allocate(…, seed)
+dom --> svc : przydziały + odmowy z powodami
+svc -> dom : verify(wynik)
+break naruszenie ograniczeń
+  svc --> w : ROLLBACK – nic nie zapisano
+end
+svc -> db : allocation_run FINAL (UNIQUE na turę), wyniki
+svc -> db : enrollment (ALLOCATION), liczniki (CHECK ≤ limit)
+svc -> db : powiadomienia ALLOCATED / NOT_ALLOCATED
+svc -> db : COMMIT
+@enduml

@@ -5,7 +5,8 @@ import { RoundBanner, Timetable, useLoad } from "../components";
 export default function Plan() {
   const { term } = useApp();
   const [plan] = useLoad<PlanItem[]>(`/api/me/terms/${term!.id}/plan`);
-  const source: Record<string, string> = { DIRECT: "zapis", WAITLIST: "z listy oczekujących", ADMIN: "dziekanat" };
+  const source: Record<string, string> = { DIRECT: "zapis", WAITLIST: "z listy oczekujących", ADMIN: "dziekanat",
+                                           ALLOCATION: "przydział wg preferencji" };
   return (
     <main>
       <RoundBanner />

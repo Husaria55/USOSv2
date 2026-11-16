@@ -1,0 +1,66 @@
+@startuml przypadki_uzycia_preferencje
+!pragma layout smetana
+left to right direction
+title Przypadki użycia (3/3) – zapisy według preferencji (etap 5)
+skinparam shadowing false
+
+actor "Student" as S
+actor "Administrator\n(dziekanat)" as A
+actor "Zegar systemowy\n(worker)" as Z
+
+rectangle "System zapisów – tura preferencyjna" {
+  usecase "UC34: Utwórz turę\npreferencyjną (pula punktów)" as UC34
+  usecase UC28 as "UC28: Zgłoś / zmień preferencje
+(wagi przedmiotów + grupy
+w kolejności), wielokrotnie
+w trakcie tury"
+  usecase "UC29: Sprawdź przewidywany\n(albo końcowy) przydział\nz powodami odmów" as UC29
+  usecase "UC31: Symuluj przydział\n(PREVIEW, co 5 min)" as UC31
+  usecase "UC17: Zamknij turę\no zadanej godzinie" as UC17
+  usecase UC30 as "UC30: Przydziel miejsca
+według preferencji (FINAL)
+--
+jednorazowo po zamknięciu tury"
+  usecase "UC33: Raport przydziału\n(jakość, popyt na przedmioty)" as UC33
+  usecase "UC3: Sprawdź wymagania\nwstępne" as UC3
+  usecase "UC4: Wykryj kolizję\nw planie" as UC4
+  usecase "UC21: Przeglądaj\npowiadomienia" as UC21
+}
+
+S -- UC28
+S -- UC29
+S -- UC21
+UC34 -- A
+UC33 -- A
+UC30 -- A
+UC31 -- A
+UC31 -- Z
+UC17 -- Z
+UC30 -- Z
+
+UC28 ..> UC3 : <<include>>
+UC28 ..> UC4 : <<include>>
+UC31 ..> UC3 : <<include>>
+UC31 ..> UC4 : <<include>>
+UC30 ..> UC3 : <<include>>
+UC30 ..> UC4 : <<include>>
+UC30 ..> UC17 : <<extend>>\n(po zamknięciu)
+
+note bottom of UC28
+  Suma wag <= pula tury (np. 100 pkt).
+  Zgłoszenie zastępuje poprzednie w całości.
+  UC3/UC4 tylko jako ostrzeżenia.
+  Po zamknięciu tury: ROUND_CLOSED.
+end note
+note bottom of UC29
+  Wynik ostatniej symulacji (UC31),
+  po zamknięciu - przydziału (UC30).
+  Powiadomienie ALLOCATED /
+  NOT_ALLOCATED (UC21).
+end note
+note bottom of UC30
+  Maksymalizuje sumę: waga x współczynnik rangi grupy,
+  bez przekroczenia limitów, bez kolizji, z wymaganiami.
+  Remis wag: losowanie z zapisanym ziarnem.
+end note
+@enduml
